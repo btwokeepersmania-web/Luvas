@@ -110,8 +110,19 @@ export const AuthProvider = ({ children }) => {
     const initializeAuth = async () => {
       setLoading(true);
 
-      // Check for Customer Account API authentication first
-      if (isCustomerAuthAuthenticated()) {
+      const customToken = localStorage.getItem('customAuthToken');
+      const customerDataString = localStorage.getItem('customerData');
+
+      if (customToken && customerDataString) {
+        try {
+          const customerData = JSON.parse(customerDataString);
+          setCustomer(customerData);
+        } catch (e) {
+          console.error('Failed to parse customer data:', e);
+          localStorage.removeItem('customAuthToken');
+          localStorage.removeItem('customerData');
+        }
+      } else if (isCustomerAuthAuthenticated()) {
         try {
           await fetchCustomerFromAPI();
         } catch (error) {
@@ -198,6 +209,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('customerAccessToken');
     localStorage.removeItem('shopify_access_token');
     localStorage.removeItem('shopify_refresh_token');
+    localStorage.removeItem('customAuthToken');
+    localStorage.removeItem('customerData');
     setCustomer(null);
     setToken(null);
     clearCart();
