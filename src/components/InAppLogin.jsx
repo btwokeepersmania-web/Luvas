@@ -16,7 +16,7 @@ const InAppLogin = () => {
   const [loading, setLoading] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const { t } = useTranslation();
-  const { login } = useAuth();
+  const { handleCustomLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -157,9 +157,7 @@ const InAppLogin = () => {
       }
 
       if (data && data.success) {
-        // Store auth token and customer data
-        localStorage.setItem('customAuthToken', data.authToken);
-        localStorage.setItem('customerData', JSON.stringify(data.customer));
+        handleCustomLogin(data.customer, data.authToken);
         
         setStep('success');
         

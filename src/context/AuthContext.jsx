@@ -217,6 +217,12 @@ export const AuthProvider = ({ children }) => {
     toast({ title: t('account.logout.success') });
   };
 
+  const handleCustomLogin = (customerData, authToken) => {
+    localStorage.setItem('customAuthToken', authToken);
+    localStorage.setItem('customerData', JSON.stringify(customerData));
+    setCustomer(customerData);
+  };
+
   const value = {
     isAuthenticated: !!customer || isCustomerAuthAuthenticated(),
     customer,
@@ -227,6 +233,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     fetchCustomerData,
     fetchCustomerFromAPI,
+    handleCustomLogin,
   };
 
   return (
