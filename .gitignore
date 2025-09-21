@@ -1,0 +1,123 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+.report/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.info
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Next.js build output
+.next/
+out/
+
+# Nuxt.js build output
+.nuxt/
+.output/
+
+# Gatsby files
+.cache/
+public/
+
+# Jekyll
+_site/
+
+# Vuepress
+.vuepress/dist/
+
+# SvelteKit
+.svelte-kit/
+build/
+
+# Docusaurus
+build/
+
+# Temporary files
+tmp/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Node.js
+node_modules/
+dist/
+build/
+coverage/
+
+# Vite
+.vite/
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm/
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle
+dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# Compiled output
+*.js.map
+*.cjs.map
+*.mjs.map
+*.d.ts.map
+
+# Storybook
+storybook-static/
+
+# Cypress
+cypress/videos/
+cypress/screenshots/
+
+# Playwright
+test-results/
+
+# Jest
+.jest/
+
+# VS Code
+.vscode/
+
+# dotenv environment variables file
+.env*
+
+# misc
+.DS_Store
+.env
+.nvmrc
+.version
