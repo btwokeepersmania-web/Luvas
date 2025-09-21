@@ -44,9 +44,8 @@ const SocialMedia = () => {
 if (typeof window !== 'undefined') {
   (function loadElfsight() {
     try {
-      const isProd = import.meta.env && import.meta.env.PROD;
       const elfsightEnabled = import.meta.env && import.meta.env.VITE_ELFSIGHT_ENABLE === 'true';
-      if (!isProd || !elfsightEnabled) return; // only load when both PROD and enabled
+      if (!elfsightEnabled) return; // only load when enabled
       if (document.querySelector('script[src="https://elfsightcdn.com/platform.js"]')) return;
       const script = document.createElement('script');
       script.src = 'https://elfsightcdn.com/platform.js';

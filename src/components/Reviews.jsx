@@ -27,7 +27,7 @@ const Reviews = () => {
 
       {/* Elfsight All-in-One Reviews Widget: load only in production to avoid dev preview fetch errors */}
     <div className="container mx-auto px-4 my-16">
-      {import.meta.env.PROD && import.meta.env.VITE_ELFSIGHT_ENABLE === 'true' ? (
+      {import.meta.env.VITE_ELFSIGHT_ENABLE === 'true' ? (
         <>
           <div id="elfsight-reviews" className="elfsight-app-334fbb31-c526-42e1-af48-eb22eb6e4f23" data-elfsight-app-lazy />
           {/* script loaded globally by SocialMedia or injected at build time; if not present we attempt to add it */}

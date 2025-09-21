@@ -31,7 +31,6 @@ out/
 
 # Gatsby files
 .cache/
-public/
 
 # Jekyll
 _site/
@@ -121,3 +120,6 @@ test-results/
 .env
 .nvmrc
 .version
+
+# Local Netlify folder
+.netlify

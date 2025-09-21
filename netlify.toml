@@ -32,9 +32,4 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Functions redirect for local development (Netlify dev handles this), but ensure functions folder is available
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
+
