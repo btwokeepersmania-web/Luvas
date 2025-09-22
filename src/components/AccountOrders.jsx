@@ -121,8 +121,8 @@ const AccountOrders = () => {
 
   // Get order status details
   const getOrderStatus = (order) => {
-    const financial = order.financialStatus;
-    const fulfillment = order.fulfillmentStatus;
+    const financial = order.displayFinancialStatus || order.financialStatus;
+    const fulfillment = order.displayFulfillmentStatus || order.fulfillmentStatus;
     
     if (fulfillment === 'FULFILLED') {
       return { 
@@ -134,7 +134,7 @@ const AccountOrders = () => {
       };
     }
     
-    if (fulfillment === 'PARTIAL') {
+    if (fulfillment === 'PARTIALLY_FULFILLED' || fulfillment === 'PARTIAL') {
       return { 
         status: 'shipping', 
         label: t('account.orders.status.shipping'), 
@@ -176,21 +176,50 @@ const AccountOrders = () => {
   // Get financial status color
   const getFinancialStatusColor = (status) => {
     switch (status) {
-      case 'PAID': return 'bg-green-500/20 text-green-300 border-green-500/30';
-      case 'PENDING': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
-      case 'REFUNDED': return 'bg-red-500/20 text-red-300 border-red-500/30';
-      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+      case 'PAID':
+        return 'bg-green-500/20 text-green-300 border-green-500/30';
+      case 'PENDING':
+      case 'AUTHORIZED':
+        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
+      case 'REFUNDED':
+      case 'PARTIALLY_REFUNDED':
+        return 'bg-red-500/20 text-red-300 border-red-500/30';
+      default:
+        return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
     }
   };
 
   // Get fulfillment status color
   const getFulfillmentStatusColor = (status) => {
     switch (status) {
-      case 'FULFILLED': return 'bg-green-500/20 text-green-300 border-green-500/30';
-      case 'PARTIAL': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
-      case 'UNFULFILLED': return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
-      default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
+      case 'FULFILLED':
+        return 'bg-green-500/20 text-green-300 border-green-500/30';
+      case 'PARTIALLY_FULFILLED':
+      case 'PARTIAL':
+        return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+      case 'PENDING_FULFILLMENT':
+      case 'IN_PROGRESS':
+      case 'ON_HOLD':
+        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
+      case 'UNFULFILLED':
+      default:
+        return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
     }
+  };
+
+  const getMoneyValue = (moneySet, fallbackAmount, fallbackCurrency) => {
+    if (moneySet?.shopMoney) {
+      return {
+        amount: moneySet.shopMoney.amount,
+        currencyCode: moneySet.shopMoney.currencyCode,
+      };
+    }
+    return { amount: fallbackAmount, currencyCode: fallbackCurrency };
+  };
+
+  const resolveTranslationKey = (base, status) => {
+    if (!status) return `${base}.unknown`;
+    return `${base}.${status.toUpperCase()}`;
   };
 
   return (
@@ -223,6 +252,22 @@ const AccountOrders = () => {
             const isExpanded = expandedOrders.has(order.id);
             const statusInfo = getOrderStatus(order);
             const StatusIcon = statusInfo.icon;
+            const totalMoney = getMoneyValue(
+              order.currentTotalPriceSet,
+              order.totalPrice?.amount || order.totalPrice,
+              order.currentTotalPriceSet?.shopMoney?.currencyCode || order.totalPrice?.currencyCode || order.currencyCode
+            );
+            const orderItemsCount = order.lineItems?.edges?.length || 0;
+            const financialStatusRaw = (order.displayFinancialStatus || order.financialStatus || '').toString();
+            const fulfillmentStatusRaw = (order.displayFulfillmentStatus || order.fulfillmentStatus || 'UNFULFILLED').toString();
+            const financialStatusKey = resolveTranslationKey('account.financialStatus', financialStatusRaw);
+            const fulfillmentStatusKey = resolveTranslationKey('account.fulfillmentStatus', fulfillmentStatusRaw);
+            const financialStatusLabel = t(financialStatusKey, {
+              defaultValue: financialStatusRaw ? financialStatusRaw.replace(/_/g, ' ') : t('account.orders.status.unknown'),
+            });
+            const fulfillmentStatusLabel = t(fulfillmentStatusKey, {
+              defaultValue: fulfillmentStatusRaw ? fulfillmentStatusRaw.replace(/_/g, ' ') : t('account.orders.status.unknown'),
+            });
 
             return (
               <Card key={order.id} className="bg-gray-900 border-yellow-500/20 text-white overflow-hidden">
@@ -231,7 +276,7 @@ const AccountOrders = () => {
                     <div className="space-y-2">
                       <CardTitle className="text-xl text-yellow-400 flex items-center gap-2">
                         <StatusIcon className="h-5 w-5" />
-                        {t('account.order')} #{order.orderNumber || order.name}
+                        {t('account.order')} #{order.confirmationNumber || order.name}
                       </CardTitle>
                       <div className="flex items-center gap-4 text-sm text-gray-400">
                         <div className="flex items-center gap-1">
@@ -249,23 +294,23 @@ const AccountOrders = () => {
                     
                     <div className="flex flex-col lg:items-end gap-3">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge className={getFinancialStatusColor(order.financialStatus)}>
+                        <Badge className={getFinancialStatusColor(financialStatusRaw)}>
                           <CreditCard className="h-3 w-3 mr-1" />
-                          {t(`account.financialStatus.${order.financialStatus}`)}
+                          {financialStatusLabel}
                         </Badge>
-                        <Badge className={getFulfillmentStatusColor(order.fulfillmentStatus)}>
+                        <Badge className={getFulfillmentStatusColor(fulfillmentStatusRaw)}>
                           <Package className="h-3 w-3 mr-1" />
-                          {t(`account.fulfillmentStatus.${order.fulfillmentStatus || 'UNFULFILLED'}`)}
+                          {fulfillmentStatusLabel}
                         </Badge>
                       </div>
                       
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <p className="text-2xl font-bold text-white">
-                            {formatPrice(order.totalPrice?.amount || order.totalPrice, order.totalPrice?.currencyCode || order.currencyCode)}
+                            {formatPrice(totalMoney.amount, totalMoney.currencyCode)}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {order.lineItems?.edges?.length || 0} {t('account.orders.items')}
+                            {orderItemsCount} {t('account.orders.items')}
                           </p>
                         </div>
                         
@@ -320,7 +365,7 @@ const AccountOrders = () => {
                         )}
 
                         {/* Tracking Information */}
-                        {(order.fulfillments?.length > 0 || order.trackingNumbers?.length > 0) && (
+                        {Array.isArray(order.fulfillments) && order.fulfillments.length > 0 && (
                           <div className="space-y-3">
                             <h4 className="font-semibold text-yellow-400 flex items-center gap-2">
                               <Truck className="h-4 w-4" />
@@ -330,18 +375,18 @@ const AccountOrders = () => {
                             {order.fulfillments?.map((fulfillment) => (
                               <div key={fulfillment.id} className="bg-gray-800 p-3 rounded-lg space-y-2">
                                 <div className="flex items-center justify-between">
-                                  <span className="font-medium">{fulfillment.trackingCompany}</span>
+                                  <span className="font-medium">{fulfillment.trackingInfo?.[0]?.company || fulfillment.status}</span>
                                   <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
                                     {fulfillment.status}
                                   </Badge>
                                 </div>
                                 
-                                {fulfillment.trackingNumbers?.map((trackingNumber, index) => (
-                                  <div key={trackingNumber} className="flex items-center justify-between text-sm">
-                                    <span className="font-mono">{trackingNumber}</span>
-                                    {fulfillment.trackingUrls?.[index] && (
+                                {fulfillment.trackingInfo?.map((info) => (
+                                  <div key={`${info?.company || 'carrier'}-${info?.number || 'ref'}`} className="flex items-center justify-between text-sm">
+                                    <span className="font-mono">{info?.number || 'N/A'}</span>
+                                    {info?.url && (
                                       <a
-                                        href={fulfillment.trackingUrls[index]}
+                                        href={info.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-yellow-400 hover:text-yellow-300 flex items-center gap-1"

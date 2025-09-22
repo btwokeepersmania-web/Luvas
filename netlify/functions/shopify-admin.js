@@ -67,39 +67,41 @@ const CUSTOMER_FRAGMENT = `
     country
     phone
   }
-  addresses(first: 10) {
-    edges {
-      node {
-        id
-        firstName
-        lastName
-        company
-        address1
-        address2
-        city
-        province
-        zip
-        country
-        phone
-      }
-    }
+  addresses {
+    id
+    firstName
+    lastName
+    company
+    address1
+    address2
+    city
+    province
+    zip
+    country
+    phone
   }
   orders(first: 50, sortKey: CREATED_AT, reverse: true) {
     edges {
       node {
         id
         name
-        orderNumber
+        confirmationNumber
         createdAt
         updatedAt
         processedAt
-        financialStatus
-        fulfillmentStatus
+        displayFinancialStatus
+        displayFulfillmentStatus
         currencyCode
-        totalPrice
+        currentTotalPriceSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
         note
         email
         phone
+        tags
         shippingAddress {
           firstName
           lastName
@@ -124,15 +126,35 @@ const CUSTOMER_FRAGMENT = `
           country
           phone
         }
-        trackingNumbers
-        trackingUrls
+        fulfillments(first: 10) {
+          id
+          status
+          updatedAt
+          estimatedDeliveryAt
+          trackingInfo {
+            company
+            number
+            url
+          }
+        }
         lineItems(first: 50) {
           edges {
             node {
-              title
+              id
+              name
               quantity
-              originalUnitPrice
-              discountedTotal
+              originalUnitPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              discountedTotalSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
               variant {
                 id
                 title
@@ -144,15 +166,6 @@ const CUSTOMER_FRAGMENT = `
               }
             }
           }
-        }
-        fulfillments {
-          id
-          status
-          trackingNumbers
-          trackingUrls
-          trackingCompany
-          updatedAt
-          estimatedDeliveryAt
         }
       }
     }
@@ -304,17 +317,37 @@ async function getOrderDetails(orderId) {
       order(id: $id) {
         id
         name
-        orderNumber
+        confirmationNumber
         createdAt
         updatedAt
         processedAt
-        financialStatus
-        fulfillmentStatus
+        displayFinancialStatus
+        displayFulfillmentStatus
         currencyCode
-        totalPrice
-        subtotalPrice
-        totalShippingPrice
-        totalTax
+        currentTotalPriceSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
+        currentSubtotalPriceSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
+        currentShippingPriceSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
+        currentTotalTaxSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
         note
         email
         phone
@@ -345,10 +378,21 @@ async function getOrderDetails(orderId) {
         lineItems(first: 50) {
           edges {
             node {
-              title
+              id
+              name
               quantity
-              originalUnitPrice
-              discountedTotal
+              originalUnitPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              discountedTotalSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
               variant {
                 id
                 title
@@ -358,14 +402,16 @@ async function getOrderDetails(orderId) {
             }
           }
         }
-        fulfillments {
+        fulfillments(first: 10) {
           id
           status
-          trackingNumbers
-          trackingUrls
-          trackingCompany
           updatedAt
           estimatedDeliveryAt
+          trackingInfo {
+            company
+            number
+            url
+          }
         }
         transactions {
           id
@@ -385,7 +431,9 @@ async function getOrderDetails(orderId) {
 
 function normalizeCustomer(customer) {
   if (!customer) return null;
-  const addresses = customer.addresses?.edges?.map(edge => edge.node) || [];
+  const addresses = Array.isArray(customer.addresses)
+    ? customer.addresses
+    : customer.addresses?.edges?.map(edge => edge.node) || [];
   return {
     ...customer,
     addresses,
