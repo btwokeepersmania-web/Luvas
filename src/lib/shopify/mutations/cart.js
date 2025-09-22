@@ -1,6 +1,13 @@
 import { gql } from 'graphql-request';
 
-export const createCartAndGetCheckoutUrl = async (fetcher, lineItems, customerAccessToken, note, shippingAddress = null) => {
+export const createCartAndGetCheckoutUrl = async (
+  fetcher,
+  lineItems,
+  customerAccessToken,
+  note,
+  shippingAddress = null,
+  buyerInfo = {}
+) => {
   const lineItemsInput = lineItems.map(item => ({
     merchandiseId: item.variantId,
     quantity: item.quantity,
@@ -8,7 +15,19 @@ export const createCartAndGetCheckoutUrl = async (fetcher, lineItems, customerAc
     sellingPlanId: item.sellingPlanId,
   }));
 
-  const buyerIdentity = customerAccessToken ? { customerAccessToken } : {};
+  const buyerIdentity = {};
+
+  if (customerAccessToken) {
+    buyerIdentity.customerAccessToken = customerAccessToken;
+  }
+
+  if (buyerInfo.email) {
+    buyerIdentity.email = buyerInfo.email;
+  }
+
+  if (buyerInfo.phone) {
+    buyerIdentity.phone = buyerInfo.phone;
+  }
 
   // Add delivery address if provided
   if (shippingAddress) {
@@ -30,8 +49,11 @@ export const createCartAndGetCheckoutUrl = async (fetcher, lineItems, customerAc
 
   const cartInput = {
     lines: lineItemsInput,
-    buyerIdentity,
   };
+
+  if (Object.keys(buyerIdentity).length > 0) {
+    cartInput.buyerIdentity = buyerIdentity;
+  }
 
   if (note) {
     cartInput.note = note;

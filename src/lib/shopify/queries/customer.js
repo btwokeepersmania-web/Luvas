@@ -10,6 +10,19 @@ export const getCustomer = async (client, customerAccessToken) => {
         displayName
         email
         phone
+        defaultAddress {
+          id
+          firstName
+          lastName
+          company
+          address1
+          address2
+          city
+          province
+          zip
+          country
+          phone
+        }
         addresses(first: 10) {
           edges {
             node {
@@ -20,6 +33,10 @@ export const getCustomer = async (client, customerAccessToken) => {
               country
               zip
               province
+              firstName
+              lastName
+              company
+              phone
             }
           }
         }

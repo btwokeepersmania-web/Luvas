@@ -55,7 +55,12 @@ const SubscriptionPlans = () => {
         phone: defaultAddress.phone || customer?.phone || '',
       } : null;
 
-      const checkoutUrl = await createCartAndGetCheckoutUrl(lineItems, token, null, shippingAddress);
+      const buyerInfo = {
+        email: customer?.email || undefined,
+        phone: customer?.phone || customer?.phoneNumber?.phoneNumber || shippingAddress?.phone || undefined,
+      };
+
+      const checkoutUrl = await createCartAndGetCheckoutUrl(lineItems, token, null, shippingAddress, buyerInfo);
       window.location.href = checkoutUrl;
     } catch (error) {
       toast({

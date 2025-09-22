@@ -45,8 +45,22 @@ export const AuthProvider = ({ children }) => {
             lastName
             displayName
             email
+            phone
             phoneNumber {
               phoneNumber
+            }
+            defaultAddress {
+              id
+              firstName
+              lastName
+              company
+              address1
+              address2
+              city
+              province
+              zip
+              country
+              phone
             }
             addresses(first: 10) {
               edges {
@@ -58,6 +72,10 @@ export const AuthProvider = ({ children }) => {
                   country
                   zip
                   province
+                  firstName
+                  lastName
+                  company
+                  phone
                 }
               }
             }

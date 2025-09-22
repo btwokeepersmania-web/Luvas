@@ -109,7 +109,8 @@ export const ShopifyProvider = ({ children }) => {
     fetchCollectionByHandle: (handle) => collectionQueries.fetchCollectionByHandle(shopifyFetch, handle),
     fetchCollectionProducts: (collectionId) => collectionQueries.fetchCollectionProducts(shopifyFetch, collectionId),
     fetchPolicy: (handle) => metaobjectQueries.fetchPolicy(shopifyFetch, handle),
-    createCartAndGetCheckoutUrl: (lineItems, customerAccessToken, note) => cartMutations.createCartAndGetCheckoutUrl(shopifyFetch, lineItems, customerAccessToken, note),
+    createCartAndGetCheckoutUrl: (lineItems, customerAccessToken, note, shippingAddress, buyerInfo) =>
+      cartMutations.createCartAndGetCheckoutUrl(shopifyFetch, lineItems, customerAccessToken, note, shippingAddress, buyerInfo),
     fetchSubscriptionPlans: () => productQueries.fetchSubscriptionPlans(shopifyFetch),
     subscribeToEmailMarketing: (email) => customerMutations.subscribeToEmailMarketing(shopifyFetch, email),
     customerCreate: (input) => customerMutations.customerCreate(shopifyFetch, input),

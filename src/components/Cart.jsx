@@ -62,7 +62,12 @@ const Cart = () => {
         phone: defaultAddress.phone || customer?.phone || '',
       } : null;
 
-      const checkoutUrl = await createCartAndGetCheckoutUrl(lineItems, token, note, shippingAddress);
+      const buyerInfo = {
+        email: customer?.email || undefined,
+        phone: customer?.phone || customer?.phoneNumber?.phoneNumber || shippingAddress?.phone || undefined,
+      };
+
+      const checkoutUrl = await createCartAndGetCheckoutUrl(lineItems, token, note, shippingAddress, buyerInfo);
 
       if (checkoutUrl) {
         // Show confirmation toast if using default address

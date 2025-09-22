@@ -48,6 +48,15 @@ const COUNTRIES = [
   { code: 'BR', name: 'Brazil' },
 ];
 
+const normalizeAddresses = (addresses) => {
+  if (!addresses) return [];
+  if (Array.isArray(addresses)) return addresses;
+  if (Array.isArray(addresses.edges)) {
+    return addresses.edges.map(edge => edge.node);
+  }
+  return [];
+};
+
 const AccountAddresses = () => {
   const { customer, fetchCustomerFromAPI } = useAuth();
   const { t } = useTranslation();
@@ -72,13 +81,13 @@ const AccountAddresses = () => {
   // Fetch addresses from Admin API
   const fetchAddresses = useCallback(async () => {
     if (!customer?.email || !isAdminApiConfigured()) {
-      return customer?.addresses || [];
+      return normalizeAddresses(customer?.addresses);
     }
 
     try {
       setLoading(true);
       const customerData = await getCustomerByEmail(customer.email);
-      return customerData?.addresses || [];
+      return normalizeAddresses(customerData?.addresses);
     } catch (error) {
       console.error('Failed to fetch addresses:', error);
       toast({
@@ -86,7 +95,7 @@ const AccountAddresses = () => {
         description: error.message,
         variant: 'destructive',
       });
-      return customer?.addresses || [];
+      return normalizeAddresses(customer?.addresses);
     } finally {
       setLoading(false);
     }
