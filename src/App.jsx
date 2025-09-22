@@ -83,7 +83,6 @@ const AppContent = () => {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
       </Helmet>
-      
       <ScrollToTop />
       <Header />
       <main className="min-h-screen bg-gray-950 text-white selection:bg-yellow-400 selection:text-black overflow-x-hidden">

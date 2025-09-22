@@ -168,6 +168,10 @@ const AccountProfile = () => {
         });
       }
       
+      if (fetchCustomerFromAPI) {
+        await fetchCustomerFromAPI();
+      }
+
       toast({
         title: t('account.profile.refreshed'),
         description: t('account.profile.refreshedDescription'),

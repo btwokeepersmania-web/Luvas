@@ -19,9 +19,9 @@ export const fetchProducts = async (fetcher) => {
             handle
             description
             productType
-            images(first: 5) { edges { node { url altText } } }
+            images(first: 4) { edges { node { url altText } } }
             options { name values }
-            variants(first: 250) { edges { node { id title availableForSale quantityAvailable price { amount currencyCode } compareAtPrice { amount currencyCode } image { id url altText } selectedOptions { name value } } } }
+            variants(first: 20) { edges { node { id title availableForSale price { amount currencyCode } compareAtPrice { amount currencyCode } } } }
           }
         }
       }

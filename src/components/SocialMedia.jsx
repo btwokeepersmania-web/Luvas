@@ -1,9 +1,63 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 
+const ELFSIGHT_SCRIPT_SRC = 'https://elfsightcdn.com/platform.js';
+const isBrowser = typeof window !== 'undefined';
+
 const SocialMedia = () => {
   const { t } = useTranslation();
+  const containerRef = useRef(null);
+  const [shouldLoadWidget, setShouldLoadWidget] = useState(false);
+  const elfsightEnabled = import.meta.env?.VITE_ELFSIGHT_ENABLE === 'true';
+
+  // Defer third-party script loading until the section is near the viewport.
+  useEffect(() => {
+    if (!elfsightEnabled) return;
+    const node = containerRef.current;
+
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      setShouldLoadWidget(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoadWidget(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px 0px' }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [elfsightEnabled]);
+
+  useEffect(() => {
+    if (!isBrowser || !shouldLoadWidget || !elfsightEnabled) return;
+
+    const alreadyLoaded = document.querySelector(`script[src="${ELFSIGHT_SCRIPT_SRC}"]`);
+    if (alreadyLoaded) return;
+
+    const script = document.createElement('script');
+    script.src = ELFSIGHT_SCRIPT_SRC;
+    script.async = true;
+    script.onerror = (error) => {
+      console.warn('Failed to load Elfsight script', error);
+      if (containerRef.current) {
+        containerRef.current.style.display = 'none';
+      }
+    };
+
+    document.body.appendChild(script);
+
+    return () => {
+      script.onload = null;
+      script.onerror = null;
+    };
+  }, [shouldLoadWidget, elfsightEnabled]);
 
   return (
     <section className="py-20 bg-gray-950">
@@ -30,6 +84,7 @@ const SocialMedia = () => {
           viewport={{ once: true }}
         >
           <div
+            ref={containerRef}
             id="elfsight-container"
             className="elfsight-app-7c2db332-b593-4048-be1a-e1a5df293af9"
             data-elfsight-app-lazy
@@ -39,30 +94,5 @@ const SocialMedia = () => {
     </section>
   );
 };
-
-// Load Elfsight script dynamically only in production and if explicitly enabled via env
-if (typeof window !== 'undefined') {
-  (function loadElfsight() {
-    try {
-      const elfsightEnabled = import.meta.env && import.meta.env.VITE_ELFSIGHT_ENABLE === 'true';
-      if (!elfsightEnabled) return; // only load when enabled
-      if (document.querySelector('script[src="https://elfsightcdn.com/platform.js"]')) return;
-      const script = document.createElement('script');
-      script.src = 'https://elfsightcdn.com/platform.js';
-      script.async = true;
-      script.onload = () => {
-        // widget initializes itself
-      };
-      script.onerror = (e) => {
-        console.warn('Failed to load Elfsight script', e);
-        const container = document.getElementById('elfsight-container');
-        if (container) container.style.display = 'none';
-      };
-      document.body.appendChild(script);
-    } catch (e) {
-      console.warn('Elfsight load skipped', e);
-    }
-  })();
-}
 
 export default SocialMedia;

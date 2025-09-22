@@ -1,69 +1,71 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext.jsx';
 import { useTranslation } from 'react-i18next';
+import { useLocalization } from '@/context/LocalizationContext.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  MapPin, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Star, 
-  Check, 
-  X, 
+import {
+  MapPin,
+  Plus,
+  Edit,
+  Trash2,
+  Star,
+  Check,
+  X,
   RefreshCw,
   Home,
   Building,
   Phone,
-  User
+  User,
+  Search
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 import { Badge } from '@/components/ui/badge.jsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog.jsx';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog.jsx';
-import { 
-  getCustomerByEmail, 
-  createCustomerAddress, 
-  updateCustomerAddress, 
-  deleteCustomerAddress, 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog.jsx';
+import {
+  getCustomerByEmail,
+  createCustomerAddress,
+  updateCustomerAddress,
+  deleteCustomerAddress,
   setDefaultAddress,
   isAdminApiConfigured,
-  validateAddress 
+  validateAddress
 } from '@/lib/shopify/adminApi.js';
 import { toast } from '@/components/ui/use-toast.js';
-
-const COUNTRIES = [
-  { code: 'US', name: 'United States' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'BR', name: 'Brazil' },
-];
 
 const normalizeAddresses = (addresses) => {
   if (!addresses) return [];
   if (Array.isArray(addresses)) return addresses;
-  if (Array.isArray(addresses.edges)) {
-    return addresses.edges.map(edge => edge.node);
-  }
+  if (Array.isArray(addresses.edges)) return addresses.edges.map((edge) => edge.node);
   return [];
 };
 
+const FALLBACK_COUNTRY_CODES = [
+  'AF','AL','DZ','AS','AD','AO','AI','AQ','AG','AR','AM','AW','AU','AT','AZ','BS','BH','BD','BB','BY','BE','BZ','BJ','BM','BT','BO','BQ','BA','BW','BV','BR','IO','BN','BG','BF','BI','CV','KH','CM','CA','KY','CF','TD','CL','CN','CX','CC','CO','KM','CG','CD','CK','CR','CI','HR','CU','CW','CY','CZ','DK','DJ','DM','DO','EC','EG','SV','GQ','ER','EE','SZ','ET','FK','FO','FJ','FI','FR','GF','PF','TF','GA','GM','GE','DE','GH','GI','GR','GL','GD','GP','GU','GT','GG','GN','GW','GY','HT','HM','VA','HN','HK','HU','IS','IN','ID','IR','IQ','IE','IM','IL','IT','JM','JP','JE','JO','KZ','KE','KI','KP','KR','KW','KG','LA','LV','LB','LS','LR','LY','LI','LT','LU','MO','MG','MW','MY','MV','ML','MT','MH','MQ','MR','MU','YT','MX','FM','MD','MC','MN','ME','MS','MA','MZ','MM','NA','NR','NP','NL','NC','NZ','NI','NE','NG','NU','NF','MK','MP','NO','OM','PK','PW','PS','PA','PG','PY','PE','PH','PN','PL','PT','PR','QA','RE','RO','RU','RW','BL','SH','KN','LC','MF','PM','VC','WS','SM','ST','SA','SN','RS','SC','SL','SG','SX','SK','SI','SB','SO','ZA','GS','SS','ES','LK','SD','SR','SJ','SE','CH','SY','TW','TJ','TZ','TH','TL','TG','TK','TO','TT','TN','TR','TM','TC','TV','UG','UA','AE','GB','US','UM','UY','UZ','VU','VE','VN','VG','VI','WF','EH','YE','ZM','ZW'
+];
+
 const AccountAddresses = () => {
   const { customer, fetchCustomerFromAPI } = useAuth();
+  const { localization } = useLocalization();
   const { t } = useTranslation();
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -75,10 +77,59 @@ const AccountAddresses = () => {
     province: '',
     zip: '',
     country: '',
+    countryCode: '',
     phone: '',
   });
 
-  // Fetch addresses from Admin API
+  const countryOptions = useMemo(() => {
+    const unique = new Map();
+    const pushCountry = (code, name) => {
+      if (!code || !name) return;
+      const normalized = name.toLowerCase();
+      if (!unique.has(normalized)) {
+        unique.set(normalized, { code, name });
+      }
+    };
+
+    localization?.availableCountries?.forEach((country) => {
+      pushCountry(country.isoCode, country.name);
+    });
+
+    if (typeof Intl !== 'undefined' && Intl.DisplayNames) {
+      const displayNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      FALLBACK_COUNTRY_CODES.forEach((code) => {
+        pushCountry(code, displayNames.of(code) || code);
+      });
+    }
+
+    return Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [localization]);
+
+  const countryMapByName = useMemo(() => {
+    const map = new Map();
+    countryOptions.forEach((option) => {
+      map.set(option.name.toLowerCase(), option);
+    });
+    return map;
+  }, [countryOptions]);
+
+  const countryMapByCode = useMemo(() => {
+    const map = new Map();
+    countryOptions.forEach((option) => {
+      map.set(option.code.toUpperCase(), option);
+    });
+    return map;
+  }, [countryOptions]);
+
+  const resolveCountryOption = useCallback(
+    (value) => {
+      if (!value) return null;
+      const normalized = value.toLowerCase();
+      return countryMapByName.get(normalized) || countryMapByCode.get(value.toUpperCase()) || null;
+    },
+    [countryMapByCode, countryMapByName]
+  );
+
   const fetchAddresses = useCallback(async () => {
     if (!customer?.email || !isAdminApiConfigured()) {
       return normalizeAddresses(customer?.addresses);
@@ -101,19 +152,17 @@ const AccountAddresses = () => {
     }
   }, [customer?.email, customer?.addresses, t]);
 
-  // Load addresses on component mount
   useEffect(() => {
     const loadAddresses = async () => {
       const addressData = await fetchAddresses();
       setAddresses(addressData);
     };
-    
+
     if (customer) {
       loadAddresses();
     }
   }, [customer, fetchAddresses]);
 
-  // Reset form
   const resetForm = () => {
     setFormData({
       firstName: '',
@@ -125,24 +174,32 @@ const AccountAddresses = () => {
       province: '',
       zip: '',
       country: '',
+      countryCode: '',
       phone: '',
     });
     setEditingAddress(null);
   };
 
-  // Handle form input changes
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Open dialog for adding new address
+  const handleCountryChange = (value) => {
+    const option = resolveCountryOption(value.trim());
+    setFormData((prev) => ({
+      ...prev,
+      country: value,
+      countryCode: option?.code || prev.countryCode,
+    }));
+  };
+
   const handleAddNew = () => {
     resetForm();
     setIsDialogOpen(true);
   };
 
-  // Open dialog for editing address
   const handleEdit = (address) => {
+    const option = resolveCountryOption(address.countryCode || address.country);
     setFormData({
       firstName: address.firstName || '',
       lastName: address.lastName || '',
@@ -152,133 +209,154 @@ const AccountAddresses = () => {
       city: address.city || '',
       province: address.province || '',
       zip: address.zip || '',
-      country: address.country || '',
+      country: option?.name || address.country || '',
+      countryCode: option?.code || address.countryCode || '',
       phone: address.phone || '',
     });
     setEditingAddress(address);
     setIsDialogOpen(true);
   };
 
-  // Handle save (create or update)
-  const handleSave = async () => {
-    try {
-      // Validate required fields
-      validateAddress(formData);
-      
-      setSaving(true);
-      
-      if (editingAddress) {
-        // Update existing address
-        await updateCustomerAddress(customer.id, editingAddress.id, formData);
-        toast({
-          title: t('account.addresses.updated'),
-          description: t('account.addresses.updatedDescription'),
-        });
-      } else {
-        // Create new address
-        await createCustomerAddress(customer.id, formData);
-        toast({
-          title: t('account.addresses.created'),
-          description: t('account.addresses.createdDescription'),
-        });
-      }
-      
-      // Refresh addresses and customer data
-      const updatedAddresses = await fetchAddresses();
-      setAddresses(updatedAddresses);
-      
-      if (fetchCustomerFromAPI) {
-        await fetchCustomerFromAPI();
-      }
-      
-      setIsDialogOpen(false);
-      resetForm();
-      
-    } catch (error) {
-      console.error('Failed to save address:', error);
+  const handlePostalLookup = async () => {
+    const postalCode = formData.zip?.trim();
+    const countryCode = formData.countryCode || resolveCountryOption(formData.country)?.code;
+
+    if (!postalCode) {
       toast({
-        title: t('account.addresses.saveError'),
+        title: t('account.addresses.lookupMissingZip') || 'Postal code required',
+        description:
+          t('account.addresses.lookupMissingZipDescription') ||
+          'Please enter the postal/ZIP code before running a lookup.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!countryCode) {
+      toast({
+        title: t('account.addresses.lookupMissingCountry') || 'Country required',
+        description:
+          t('account.addresses.lookupMissingCountryDescription') ||
+          'Select or type a country so we know which lookup service to use.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLookupLoading(true);
+    try {
+      let response;
+      if (countryCode.toUpperCase() === 'BR') {
+        const sanitized = postalCode.replace(/[^0-9]/g, '');
+        response = await fetch(`https://viacep.com.br/ws/${sanitized}/json/`);
+        if (!response.ok) throw new Error('CEP lookup failed');
+        const data = await response.json();
+        if (data.erro) throw new Error('CEP not found');
+        setFormData((prev) => ({
+          ...prev,
+          city: data.localidade || prev.city,
+          province: data.uf || data.estado || prev.province,
+          address1: data.logradouro || prev.address1,
+          country: 'Brazil',
+          countryCode: 'BR',
+        }));
+      } else {
+        response = await fetch(`https://api.zippopotam.us/${countryCode.toLowerCase()}/${encodeURIComponent(postalCode)}`);
+        if (!response.ok) throw new Error('Postal lookup failed');
+        const data = await response.json();
+        const place = Array.isArray(data.places) && data.places.length ? data.places[0] : null;
+        setFormData((prev) => ({
+          ...prev,
+          city: place?.['place name'] || prev.city,
+          province: place?.state || place?.['state abbreviation'] || prev.province,
+          country: countryMapByCode.get(countryCode.toUpperCase())?.name || prev.country || data.country,
+          countryCode: countryCode.toUpperCase(),
+        }));
+      }
+      toast({
+        title: t('account.addresses.lookupSuccess') || 'Address suggestions applied',
+        description:
+          t('account.addresses.lookupSuccessDescription') ||
+          'We filled in any address details we could find. Please confirm they are correct.',
+      });
+    } catch (error) {
+      console.error('Postal lookup failed:', error);
+      toast({
+        title: t('account.addresses.lookupError') || 'Lookup unavailable',
         description: error.message,
         variant: 'destructive',
       });
+    } finally {
+      setIsLookupLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      validateAddress(formData);
+      setSaving(true);
+
+      if (editingAddress) {
+        await updateCustomerAddress(customer.id, editingAddress.id, formData);
+        toast({ title: t('account.addresses.updated'), description: t('account.addresses.updatedDescription') });
+      } else {
+        await createCustomerAddress(customer.id, formData);
+        toast({ title: t('account.addresses.created'), description: t('account.addresses.createdDescription') });
+      }
+
+      const updatedAddresses = await fetchAddresses();
+      setAddresses(updatedAddresses);
+
+      if (fetchCustomerFromAPI) {
+        await fetchCustomerFromAPI();
+      }
+
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save address:', error);
+      toast({ title: t('account.addresses.saveError'), description: error.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
-  // Handle delete address
   const handleDelete = async (addressId) => {
     try {
       setSaving(true);
       await deleteCustomerAddress(customer.id, addressId);
-      
-      // Refresh addresses
       const updatedAddresses = await fetchAddresses();
       setAddresses(updatedAddresses);
-      
-      if (fetchCustomerFromAPI) {
-        await fetchCustomerFromAPI();
-      }
-      
-      toast({
-        title: t('account.addresses.deleted'),
-        description: t('account.addresses.deletedDescription'),
-      });
-      
+      if (fetchCustomerFromAPI) await fetchCustomerFromAPI();
+      toast({ title: t('account.addresses.deleted'), description: t('account.addresses.deletedDescription') });
     } catch (error) {
       console.error('Failed to delete address:', error);
-      toast({
-        title: t('account.addresses.deleteError'),
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: t('account.addresses.deleteError'), description: error.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
-  // Handle set as default
   const handleSetDefault = async (addressId) => {
     try {
       setSaving(true);
       await setDefaultAddress(customer.id, addressId);
-      
-      // Refresh addresses
       const updatedAddresses = await fetchAddresses();
       setAddresses(updatedAddresses);
-      
-      if (fetchCustomerFromAPI) {
-        await fetchCustomerFromAPI();
-      }
-      
-      toast({
-        title: t('account.addresses.defaultSet'),
-        description: t('account.addresses.defaultSetDescription'),
-      });
-      
+      if (fetchCustomerFromAPI) await fetchCustomerFromAPI();
+      toast({ title: t('account.addresses.defaultSet'), description: t('account.addresses.defaultSetDescription') });
     } catch (error) {
       console.error('Failed to set default address:', error);
-      toast({
-        title: t('account.addresses.defaultError'),
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: t('account.addresses.defaultError'), description: error.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
-  // Check if address is default
-  const isDefaultAddress = (addressId) => {
-    return customer?.defaultAddress?.id === addressId;
-  };
+  const isDefaultAddress = (addressId) => customer?.defaultAddress?.id === addressId;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <Card className="bg-gray-900 border-yellow-500/20 text-white">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -288,10 +366,7 @@ const AccountAddresses = () => {
             </CardTitle>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button 
-                  onClick={handleAddNew}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-black"
-                >
+                <Button onClick={handleAddNew} className="bg-yellow-500 hover:bg-yellow-600 text-black">
                   <Plus className="h-4 w-4 mr-2" />
                   {t('account.addresses.addNew')}
                 </Button>
@@ -302,136 +377,147 @@ const AccountAddresses = () => {
                     {editingAddress ? t('account.addresses.editAddress') : t('account.addresses.addNewAddress')}
                   </DialogTitle>
                 </DialogHeader>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">{t('account.addresses.firstName')}</Label>
                     <Input
                       id="firstName"
                       value={formData.firstName}
-                      onChange={(e) => handleInputChange('firstName', e.target.value)}
+                      onChange={(event) => handleInputChange('firstName', event.target.value)}
                       className="bg-gray-800 border-gray-700"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="lastName">{t('account.addresses.lastName')}</Label>
                     <Input
                       id="lastName"
                       value={formData.lastName}
-                      onChange={(e) => handleInputChange('lastName', e.target.value)}
+                      onChange={(event) => handleInputChange('lastName', event.target.value)}
                       className="bg-gray-800 border-gray-700"
                     />
                   </div>
-                  
+
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="company">{t('account.addresses.company')} ({t('account.addresses.optional')})</Label>
                     <Input
                       id="company"
                       value={formData.company}
-                      onChange={(e) => handleInputChange('company', e.target.value)}
+                      onChange={(event) => handleInputChange('company', event.target.value)}
                       className="bg-gray-800 border-gray-700"
                     />
                   </div>
-                  
+
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="address1">{t('account.addresses.address1')} *</Label>
                     <Input
                       id="address1"
                       value={formData.address1}
-                      onChange={(e) => handleInputChange('address1', e.target.value)}
+                      onChange={(event) => handleInputChange('address1', event.target.value)}
                       className="bg-gray-800 border-gray-700"
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="address2">{t('account.addresses.address2')} ({t('account.addresses.optional')})</Label>
                     <Input
                       id="address2"
                       value={formData.address2}
-                      onChange={(e) => handleInputChange('address2', e.target.value)}
+                      onChange={(event) => handleInputChange('address2', event.target.value)}
                       className="bg-gray-800 border-gray-700"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="city">{t('account.addresses.city')} *</Label>
                     <Input
                       id="city"
                       value={formData.city}
-                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      onChange={(event) => handleInputChange('city', event.target.value)}
                       className="bg-gray-800 border-gray-700"
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="province">{t('account.addresses.province')}</Label>
                     <Input
                       id="province"
                       value={formData.province}
-                      onChange={(e) => handleInputChange('province', e.target.value)}
+                      onChange={(event) => handleInputChange('province', event.target.value)}
                       className="bg-gray-800 border-gray-700"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="zip">{t('account.addresses.zip')}</Label>
-                    <Input
-                      id="zip"
-                      value={formData.zip}
-                      onChange={(e) => handleInputChange('zip', e.target.value)}
-                      className="bg-gray-800 border-gray-700"
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="zip"
+                        value={formData.zip}
+                        onChange={(event) => handleInputChange('zip', event.target.value)}
+                        className="bg-gray-800 border-gray-700"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handlePostalLookup}
+                        disabled={isLookupLoading}
+                        className="border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10"
+                      >
+                        {isLookupLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      </Button>
+                    </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="country">{t('account.addresses.country')} *</Label>
-                    <Select value={formData.country} onValueChange={(value) => handleInputChange('country', value)}>
-                      <SelectTrigger className="bg-gray-800 border-gray-700">
-                        <SelectValue placeholder={t('account.addresses.selectCountry')} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
-                        {COUNTRIES.map((country) => (
-                          <SelectItem key={country.code} value={country.name}>
-                            {country.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="country"
+                      value={formData.country}
+                      onChange={(event) => handleCountryChange(event.target.value)}
+                      list="account-country-options"
+                      placeholder={t('account.addresses.selectCountry')}
+                      className="bg-gray-800 border-gray-700"
+                      required
+                    />
+                    <datalist id="account-country-options">
+                      {countryOptions.map((option) => (
+                        <option key={option.code} value={option.name} />
+                      ))}
+                    </datalist>
                   </div>
-                  
+
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="phone">{t('account.addresses.phone')} ({t('account.addresses.optional')})</Label>
                     <Input
                       id="phone"
                       value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      onChange={(event) => handleInputChange('phone', event.target.value)}
                       className="bg-gray-800 border-gray-700"
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex justify-end gap-3">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => setIsDialogOpen(false)}
                     className="border-gray-600 text-gray-300 hover:bg-gray-800"
                   >
                     <X className="h-4 w-4 mr-2" />
                     {t('account.addresses.cancel')}
                   </Button>
-                  <Button 
+                  <Button
+                    type="button"
                     onClick={handleSave}
                     disabled={saving || !formData.address1 || !formData.city || !formData.country}
                     className="bg-yellow-500 hover:bg-yellow-600 text-black"
                   >
-                    {saving ? (
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Check className="h-4 w-4 mr-2" />
-                    )}
+                    {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
                     {saving ? t('account.addresses.saving') : t('account.addresses.save')}
                   </Button>
                 </div>
@@ -439,7 +525,7 @@ const AccountAddresses = () => {
             </Dialog>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {loading ? (
             <div className="text-center py-8">
@@ -474,7 +560,7 @@ const AccountAddresses = () => {
                               </Badge>
                             )}
                           </div>
-                          
+
                           <div className="flex gap-1">
                             <Button
                               size="sm"
@@ -484,7 +570,7 @@ const AccountAddresses = () => {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            
+
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
@@ -519,30 +605,34 @@ const AccountAddresses = () => {
                             </AlertDialog>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-1 text-sm">
                           <div className="flex items-center gap-2 font-semibold">
                             <User className="h-4 w-4 text-gray-400" />
                             {address.firstName} {address.lastName}
                           </div>
-                          
+
                           {address.company && (
                             <div className="flex items-center gap-2 text-gray-400">
                               <Building className="h-4 w-4" />
                               {address.company}
                             </div>
                           )}
-                          
+
                           <div className="flex items-start gap-2 text-gray-300">
                             <Home className="h-4 w-4 text-gray-400 mt-0.5" />
                             <div>
                               <p>{address.address1}</p>
                               {address.address2 && <p>{address.address2}</p>}
-                              <p>{address.city}, {address.province} {address.zip}</p>
+                              <p>
+                                {address.city}
+                                {address.province ? `, ${address.province}` : ''}
+                                {address.zip ? ` ${address.zip}` : ''}
+                              </p>
                               <p>{address.country}</p>
                             </div>
                           </div>
-                          
+
                           {address.phone && (
                             <div className="flex items-center gap-2 text-gray-400">
                               <Phone className="h-4 w-4" />
@@ -550,7 +640,7 @@ const AccountAddresses = () => {
                             </div>
                           )}
                         </div>
-                        
+
                         {!isDefaultAddress(address.id) && (
                           <Button
                             size="sm"

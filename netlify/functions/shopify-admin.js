@@ -63,8 +63,10 @@ const CUSTOMER_FRAGMENT = `
     address2
     city
     province
+    provinceCode
     zip
     country
+    countryCode
     phone
   }
   addresses {
@@ -76,8 +78,10 @@ const CUSTOMER_FRAGMENT = `
     address2
     city
     province
+    provinceCode
     zip
     country
+    countryCode
     phone
   }
   orders(first: 50, sortKey: CREATED_AT, reverse: true) {
@@ -110,8 +114,10 @@ const CUSTOMER_FRAGMENT = `
           address2
           city
           province
+          provinceCode
           zip
           country
+          countryCode
           phone
         }
         billingAddress {
@@ -122,8 +128,10 @@ const CUSTOMER_FRAGMENT = `
           address2
           city
           province
+          provinceCode
           zip
           country
+          countryCode
           phone
         }
         fulfillments(first: 10) {
@@ -223,8 +231,20 @@ async function createCustomerAddress(customerId, address) {
   const mutation = `
     mutation customerAddressCreate($customerId: ID!, $address: MailingAddressInput!) {
       customerAddressCreate(customerId: $customerId, address: $address) {
-        customerAddress {
+        address {
           id
+          firstName
+          lastName
+          company
+          address1
+          address2
+          city
+          province
+          provinceCode
+          zip
+          country
+          countryCode
+          phone
         }
         userErrors {
           field
@@ -239,15 +259,27 @@ async function createCustomerAddress(customerId, address) {
   if (result?.userErrors?.length) {
     throw new Error(result.userErrors.map(e => e.message).join(', '));
   }
-  return result?.customerAddress || null;
+  return result?.address || null;
 }
 
 async function updateCustomerAddress(customerId, addressId, address) {
   const mutation = `
     mutation customerAddressUpdate($customerId: ID!, $id: ID!, $address: MailingAddressInput!) {
       customerAddressUpdate(customerId: $customerId, id: $id, address: $address) {
-        customerAddress {
+        address {
           id
+          firstName
+          lastName
+          company
+          address1
+          address2
+          city
+          province
+          provinceCode
+          zip
+          country
+          countryCode
+          phone
         }
         userErrors {
           field
@@ -262,14 +294,14 @@ async function updateCustomerAddress(customerId, addressId, address) {
   if (result?.userErrors?.length) {
     throw new Error(result.userErrors.map(e => e.message).join(', '));
   }
-  return result?.customerAddress || null;
+  return result?.address || null;
 }
 
 async function deleteCustomerAddress(customerId, addressId) {
   const mutation = `
     mutation customerAddressDelete($customerId: ID!, $id: ID!) {
       customerAddressDelete(customerId: $customerId, id: $id) {
-        deletedCustomerAddressId
+        deletedAddressId
         userErrors {
           field
           message
@@ -283,7 +315,7 @@ async function deleteCustomerAddress(customerId, addressId) {
   if (result?.userErrors?.length) {
     throw new Error(result.userErrors.map(e => e.message).join(', '));
   }
-  return result?.deletedCustomerAddressId || null;
+  return result?.deletedAddressId || null;
 }
 
 async function setDefaultAddress(customerId, addressId) {
@@ -359,8 +391,10 @@ async function getOrderDetails(orderId) {
           address2
           city
           province
+          provinceCode
           zip
           country
+          countryCode
           phone
         }
         billingAddress {
@@ -371,8 +405,10 @@ async function getOrderDetails(orderId) {
           address2
           city
           province
+          provinceCode
           zip
           country
+          countryCode
           phone
         }
         lineItems(first: 50) {

@@ -3,7 +3,8 @@ import { useShopify } from './ShopifyContext.jsx';
 import { useCart } from './CartContext.jsx';
 import { toast } from '@/components/ui/use-toast.js';
 import { useTranslation } from 'react-i18next';
-import { customerAccountFetch, getAccessToken, isAuthenticated as isCustomerAuthAuthenticated } from '@/lib/shopify/customerAuth.js';
+import { customerAccountFetch, isAuthenticated as isCustomerAuthAuthenticated } from '@/lib/shopify/customerAuth.js';
+import { getCustomerByEmail, isAdminApiConfigured } from '@/lib/shopify/adminApi.js';
 
 const AuthContext = createContext();
 
@@ -22,18 +23,101 @@ export const AuthProvider = ({ children }) => {
   const { customerCreate, customerAccessTokenCreate, customerAccessTokenDelete, getCustomer } = useShopify();
   const { clearCart } = useCart();
   const { t } = useTranslation();
+  const adminApiEnabled = isAdminApiConfigured();
 
-  const fetchCustomerData = useCallback(async (accessToken) => {
-    try {
-      const { customer: customerData } = await getCustomer(accessToken);
-      setCustomer(customerData);
-      return customerData;
-    } catch (error) {
-      console.error('Failed to fetch customer data:', error);
-      await logout();
-      return null;
+  const normalizeCustomerShape = useCallback((rawCustomer) => {
+    if (!rawCustomer) return null;
+
+    const normalizeAddresses = () => {
+      if (Array.isArray(rawCustomer.addresses)) {
+        return rawCustomer.addresses.map((address) => ({ ...address }));
+      }
+      if (Array.isArray(rawCustomer.addresses?.edges)) {
+        return rawCustomer.addresses.edges.map(({ node }) => ({ ...node }));
+      }
+      return [];
+    };
+
+    const normalizeOrders = () => {
+      if (Array.isArray(rawCustomer.orders)) {
+        return rawCustomer.orders.map((order) => ({ ...order }));
+      }
+      if (Array.isArray(rawCustomer.orders?.edges)) {
+        return rawCustomer.orders.edges.map(({ node }) => ({ ...node }));
+      }
+      return [];
+    };
+
+    return {
+      ...rawCustomer,
+      phone: rawCustomer.phone || rawCustomer.phoneNumber?.phoneNumber || '',
+      addresses: normalizeAddresses(),
+      orders: normalizeOrders(),
+      defaultAddress: rawCustomer.defaultAddress ? { ...rawCustomer.defaultAddress } : null,
+    };
+  }, []);
+
+  const hydrateWithAdminData = useCallback(
+    async (baseCustomer) => {
+      if (!baseCustomer) return null;
+      let normalized = normalizeCustomerShape(baseCustomer);
+
+      if (adminApiEnabled && normalized?.email) {
+        try {
+          const adminCustomer = await getCustomerByEmail(normalized.email);
+          if (adminCustomer) {
+            normalized = normalizeCustomerShape({ ...normalized, ...adminCustomer });
+          }
+        } catch (error) {
+          console.error('Failed to hydrate customer with admin data:', error);
+        }
+      }
+
+      setCustomer(normalized);
+      return normalized;
+    },
+    [adminApiEnabled, normalizeCustomerShape]
+  );
+
+  const logout = useCallback(async () => {
+    if (token) {
+      try {
+        await customerAccessTokenDelete(token);
+      } catch (error) {
+        console.error('Error during token deletion:', error);
+      }
     }
-  }, [getCustomer]);
+
+    try {
+      await fetch('/.netlify/functions/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Server-side logout failed:', error);
+    }
+
+    localStorage.removeItem('customerAccessToken');
+    localStorage.removeItem('shopify_access_token');
+    localStorage.removeItem('shopify_refresh_token');
+    localStorage.removeItem('customAuthToken');
+    localStorage.removeItem('customerData');
+    setCustomer(null);
+    setToken(null);
+    clearCart();
+    toast({ title: t('account.logout.success') });
+  }, [token, clearCart, t, customerAccessTokenDelete]);
+
+  const fetchCustomerData = useCallback(
+    async (accessToken) => {
+      try {
+        const { customer: customerData } = await getCustomer(accessToken);
+        return await hydrateWithAdminData(customerData);
+      } catch (error) {
+        console.error('Failed to fetch customer data:', error);
+        await logout();
+        return null;
+      }
+    },
+    [getCustomer, hydrateWithAdminData, logout]
+  );
 
   const fetchCustomerFromAPI = useCallback(async () => {
     try {
@@ -58,8 +142,10 @@ export const AuthProvider = ({ children }) => {
               address2
               city
               province
+              provinceCode
               zip
               country
+              countryCode
               phone
             }
             addresses(first: 10) {
@@ -70,8 +156,10 @@ export const AuthProvider = ({ children }) => {
                   address2
                   city
                   country
+                  countryCode
                   zip
                   province
+                  provinceCode
                   firstName
                   lastName
                   company
@@ -114,15 +202,14 @@ export const AuthProvider = ({ children }) => {
 
       const response = await customerAccountFetch(query);
       if (response.data?.customer) {
-        setCustomer(response.data.customer);
-        return response.data.customer;
+        return await hydrateWithAdminData(response.data.customer);
       }
       return null;
     } catch (error) {
       console.error('Failed to fetch customer from API:', error);
       return null;
     }
-  }, []);
+  }, [hydrateWithAdminData]);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -134,9 +221,9 @@ export const AuthProvider = ({ children }) => {
       if (customToken && customerDataString) {
         try {
           const customerData = JSON.parse(customerDataString);
-          setCustomer(customerData);
-        } catch (e) {
-          console.error('Failed to parse customer data:', e);
+          await hydrateWithAdminData(customerData);
+        } catch (error) {
+          console.error('Failed to parse customer data:', error);
           localStorage.removeItem('customAuthToken');
           localStorage.removeItem('customerData');
         }
@@ -147,7 +234,6 @@ export const AuthProvider = ({ children }) => {
           console.error('Customer Account API auth failed:', error);
         }
       } else {
-        // Fallback to Storefront API authentication
         const storedToken = localStorage.getItem('customerAccessToken');
         if (storedToken) {
           try {
@@ -158,8 +244,8 @@ export const AuthProvider = ({ children }) => {
             } else {
               localStorage.removeItem('customerAccessToken');
             }
-          } catch (e) {
-            console.error('Failed to parse token:', e);
+          } catch (error) {
+            console.error('Failed to parse token:', error);
             localStorage.removeItem('customerAccessToken');
           }
         }
@@ -167,8 +253,9 @@ export const AuthProvider = ({ children }) => {
 
       setLoading(false);
     };
+
     initializeAuth();
-  }, [fetchCustomerData, fetchCustomerFromAPI]);
+  }, [fetchCustomerData, fetchCustomerFromAPI, hydrateWithAdminData]);
 
   const handleLogin = async (email, password) => {
     try {
@@ -180,11 +267,11 @@ export const AuthProvider = ({ children }) => {
         await fetchCustomerData(accessToken);
         toast({ title: t('auth.login.success') });
         return { success: true };
-      } else {
-        const errorMessages = result.customerAccessTokenCreate.customerUserErrors.map(e => e.message).join(', ');
-        toast({ title: t('auth.login.error'), description: errorMessages, variant: 'destructive' });
-        return { success: false, error: errorMessages };
       }
+
+      const errorMessages = result.customerAccessTokenCreate.customerUserErrors.map((error) => error.message).join(', ');
+      toast({ title: t('auth.login.error'), description: errorMessages, variant: 'destructive' });
+      return { success: false, error: errorMessages };
     } catch (error) {
       toast({ title: t('auth.login.error'), description: error.message, variant: 'destructive' });
       return { success: false, error: error.message };
@@ -197,48 +284,21 @@ export const AuthProvider = ({ children }) => {
       if (result.customerCreate.customer) {
         toast({ title: t('auth.register.success'), description: t('auth.register.successDescription') });
         return { success: true };
-      } else {
-        const errorMessages = result.customerCreate.customerUserErrors.map(e => e.message).join(', ');
-        toast({ title: t('auth.register.error'), description: errorMessages, variant: 'destructive' });
-        return { success: false, error: errorMessages };
       }
+
+      const errorMessages = result.customerCreate.customerUserErrors.map((error) => error.message).join(', ');
+      toast({ title: t('auth.register.error'), description: errorMessages, variant: 'destructive' });
+      return { success: false, error: errorMessages };
     } catch (error) {
       toast({ title: t('auth.register.error'), description: error.message, variant: 'destructive' });
       return { success: false, error: error.message };
     }
   };
 
-  const logout = async () => {
-    if (token) {
-      try {
-        await customerAccessTokenDelete(token);
-      } catch (error) {
-        console.error('Error during token deletion:', error);
-      }
-    }
-
-    // Call server to clear httpOnly cookies
-    try {
-      await fetch('/.netlify/functions/logout', { method: 'POST' });
-    } catch (e) {
-      console.error('Server-side logout failed:', e);
-    }
-
-    localStorage.removeItem('customerAccessToken');
-    localStorage.removeItem('shopify_access_token');
-    localStorage.removeItem('shopify_refresh_token');
-    localStorage.removeItem('customAuthToken');
-    localStorage.removeItem('customerData');
-    setCustomer(null);
-    setToken(null);
-    clearCart();
-    toast({ title: t('account.logout.success') });
-  };
-
   const handleCustomLogin = (customerData, authToken) => {
     localStorage.setItem('customAuthToken', authToken);
     localStorage.setItem('customerData', JSON.stringify(customerData));
-    setCustomer(customerData);
+    hydrateWithAdminData(customerData);
   };
 
   const value = {
@@ -260,3 +320,4 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
