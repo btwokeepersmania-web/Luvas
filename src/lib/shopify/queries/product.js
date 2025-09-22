@@ -21,7 +21,7 @@ export const fetchProducts = async (fetcher) => {
             productType
             images(first: 5) { edges { node { url altText } } }
             options { name values }
-            variants(first: 50) { edges { node { id title availableForSale quantityAvailable price { amount currencyCode } compareAtPrice { amount currencyCode } image { id url altText } selectedOptions { name value } } } }
+            variants(first: 250) { edges { node { id title availableForSale quantityAvailable price { amount currencyCode } compareAtPrice { amount currencyCode } image { id url altText } selectedOptions { name value } } } }
           }
         }
       }
@@ -49,7 +49,7 @@ export const fetchProductByHandle = async (fetcher, handle) => {
         }
         images(first: 10) { edges { node { id url altText } } }
         options(first: 3) { id name values }
-        variants(first: 50) { edges { node { id title availableForSale quantityAvailable price { amount currencyCode } compareAtPrice { amount currencyCode } image { id url altText } selectedOptions { name value } } } }
+        variants(first: 250) { edges { node { id title availableForSale quantityAvailable price { amount currencyCode } compareAtPrice { amount currencyCode } image { id url altText } selectedOptions { name value } } } }
       }
     }
   `;
