@@ -131,6 +131,57 @@ const Products = () => {
             const discountPercent = hasDiscount
               ? Math.max(1, Math.round(((compareNumber - priceNumber) / compareNumber) * 100))
               : null;
+            const stockSummary = (() => {
+              if (Array.isArray(product?.variants) && product.variants.length > 0) {
+                let totalRemaining = 0;
+                let hasUnknown = false;
+                product.variants.forEach((variant) => {
+                  const qty = toPositiveInt(variant.quantityAvailable);
+                  const cartQty = getVariantQuantityInCart(variant.id);
+                  if (qty === null) {
+                    hasUnknown = true;
+                  } else {
+                    totalRemaining += Math.max(0, qty - cartQty);
+                  }
+                });
+                return { totalRemaining, hasUnknown };
+              }
+
+              const qty = toPositiveInt(product?.quantityAvailable);
+              if (qty === null) {
+                return { totalRemaining: null, hasUnknown: true };
+              }
+              const baseVariantId = product?.variantId || variantId;
+              const cartQty = baseVariantId ? getVariantQuantityInCart(baseVariantId) : 0;
+              return { totalRemaining: Math.max(0, qty - cartQty), hasUnknown: false };
+            })();
+
+            const stockMeta = (() => {
+              const { totalRemaining, hasUnknown } = stockSummary;
+              if (hasUnknown) {
+                return {
+                  label: t('product.inStock', { defaultValue: 'In stock' }),
+                  className: 'text-green-400',
+                };
+              }
+              if (totalRemaining === 0) {
+                return {
+                  label: t('product.outOfStockShort', { defaultValue: 'Out of stock' }),
+                  className: 'text-red-400',
+                };
+              }
+              if (totalRemaining === 1) {
+                return {
+                  label: t('product.lastItem', { defaultValue: '1 last item' }),
+                  className: 'text-yellow-400',
+                };
+              }
+              return {
+                label: t('product.stockCount', { defaultValue: '{{count}} in stock', count: totalRemaining }),
+                className: 'text-green-400',
+              };
+            })();
+
             const canAddMore = variantAvailable;
             const addDisabled = !defaultVariant || !canAddMore;
             const plusDisabled = !defaultVariant || (remainingStock !== null && remainingStock <= 0);
@@ -264,11 +315,9 @@ const Products = () => {
                   </Link>
                 </div>
 
-                {typeof remainingStock === 'number' && (
-                  <p className="text-xs text-gray-400 mt-2">
-                    {remainingStock > 0
-                      ? t('product.remainingStock', { defaultValue: '{{count}} item(s) left', count: remainingStock })
-                      : t('product.noMoreStock', { defaultValue: 'No additional stock available' })}
+                {stockMeta.label && (
+                  <p className={`text-xs mt-2 ${stockMeta.className}`}>
+                    {stockMeta.label}
                   </p>
                 )}
               </div>

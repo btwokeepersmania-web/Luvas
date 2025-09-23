@@ -8,7 +8,7 @@ import { useLocalization } from '@/context/LocalizationContext.jsx';
 import { ShoppingCart, Eye, Minus, Plus } from 'lucide-react';
 
 const ProductCard = ({ product }) => {
-  const { addToCart, findCartItem, updateQuantity, getVariantQuantityInCart } = useCart();
+  const { addToCart, findCartItem, updateQuantity, getVariantQuantityInCart, cartItems } = useCart();
   const { t } = useTranslation();
   const { formatPrice } = useLocalization();
   const [hoveredImageIndex, setHoveredImageIndex] = useState(0);
@@ -76,6 +76,60 @@ const ProductCard = ({ product }) => {
   const inCart = Boolean(cartItem);
   const hasStockLimit = typeof effectiveMaxQuantity === 'number';
   const canAddMore = Boolean(defaultVariant) && (!hasStockLimit || (remainingStock ?? 0) > 0);
+
+  const stockSummary = useMemo(() => {
+    if (Array.isArray(product?.variants) && product.variants.length > 0) {
+      let totalRemaining = 0;
+      let hasUnknown = false;
+      product.variants.forEach((variant) => {
+        const qty = toPositiveInt(variant.quantityAvailable);
+        const cartQty = getVariantQuantityInCart(variant.id);
+        if (qty === null) {
+          hasUnknown = true;
+        } else {
+          totalRemaining += Math.max(0, qty - cartQty);
+        }
+      });
+      return { totalRemaining, hasUnknown };
+    }
+
+    const qty = toPositiveInt(product?.quantityAvailable);
+    if (qty === null) {
+      return { totalRemaining: null, hasUnknown: true };
+    }
+    const cartQty = variantId ? getVariantQuantityInCart(variantId) : 0;
+    return { totalRemaining: Math.max(0, qty - cartQty), hasUnknown: false };
+  }, [product, getVariantQuantityInCart, variantId, cartItems]);
+
+  const stockMeta = useMemo(() => {
+    const { totalRemaining, hasUnknown } = stockSummary;
+
+    if (hasUnknown) {
+      return {
+        label: t('product.inStock', { defaultValue: 'In stock' }),
+        className: 'text-green-400',
+      };
+    }
+
+    if (totalRemaining === 0) {
+      return {
+        label: t('product.outOfStockShort', { defaultValue: 'Out of stock' }),
+        className: 'text-red-400',
+      };
+    }
+
+    if (totalRemaining === 1) {
+      return {
+        label: t('product.lastItem', { defaultValue: '1 last item' }),
+        className: 'text-yellow-400',
+      };
+    }
+
+    return {
+      label: t('product.stockCount', { defaultValue: '{{count}} in stock', count: totalRemaining }),
+      className: 'text-green-400',
+    };
+  }, [stockSummary, t]);
 
   const handleMouseEnter = () => {
     if (productImages.length > 1) {
@@ -242,11 +296,9 @@ const ProductCard = ({ product }) => {
           </Link>
         </div>
 
-        {typeof remainingStock === 'number' && (
-          <p className="text-xs text-gray-400 mt-2">
-            {remainingStock > 0
-              ? t('product.remainingStock', { defaultValue: '{{count}} item(s) left', count: remainingStock })
-              : t('product.noMoreStock', { defaultValue: 'No additional stock available' })}
+        {stockMeta?.label && (
+          <p className={`text-xs mt-2 ${stockMeta.className}`}>
+            {stockMeta.label}
           </p>
         )}
       </div>

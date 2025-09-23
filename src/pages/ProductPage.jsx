@@ -292,6 +292,37 @@ const ProductPage = () => {
     const decreaseDisabled = cartItem ? cartQuantity <= 0 : quantity <= 1;
     const addButtonDisabled = !variantAvailable;
 
+    const aggregate = (() => {
+      if (Array.isArray(product?.variants) && product.variants.length > 0) {
+        let totalRemaining = 0;
+        let hasUnknown = false;
+        product.variants.forEach((variant) => {
+          const qty = toPositiveInt(variant.quantityAvailable);
+          const cartQty = cartItems.reduce((sum, item) => (
+            String(item.variantId) === String(variant.id) ? sum + item.quantity : sum
+          ), 0);
+          if (qty === null) {
+            hasUnknown = true;
+          } else {
+            totalRemaining += Math.max(0, qty - cartQty);
+          }
+        });
+        return { totalRemaining, hasUnknown };
+      }
+
+      const qty = toPositiveInt(product?.quantityAvailable);
+      if (qty === null) {
+        return { totalRemaining: null, hasUnknown: true };
+      }
+      const baseVariantId = product?.variantId || normalizedId;
+      const cartQty = baseVariantId
+        ? cartItems.reduce((sum, item) => (
+            String(item.variantId) === String(baseVariantId) ? sum + item.quantity : sum
+          ), 0)
+        : 0;
+      return { totalRemaining: Math.max(0, qty - cartQty), hasUnknown: false };
+    })();
+
     return {
       cartQuantity,
       maxQuantity,
@@ -301,8 +332,10 @@ const ProductPage = () => {
       increaseDisabled,
       decreaseDisabled,
       addButtonDisabled,
+      totalStockRemaining: aggregate.totalRemaining,
+      totalStockUnknown: aggregate.hasUnknown,
     };
-  }, [cartItem, cartItems, quantity, selectedVariant]);
+  }, [cartItem, cartItems, product, quantity, selectedVariant]);
 
   const {
     cartQuantity,
@@ -313,7 +346,37 @@ const ProductPage = () => {
     increaseDisabled,
     decreaseDisabled,
     addButtonDisabled,
+    totalStockRemaining,
+    totalStockUnknown,
   } = stockMetrics;
+
+  const totalStockMeta = useMemo(() => {
+    if (totalStockUnknown) {
+      return {
+        label: t('product.inStock', { defaultValue: 'In stock' }),
+        className: 'text-green-400',
+      };
+    }
+
+    if (totalStockRemaining === 0) {
+      return {
+        label: t('product.outOfStockShort', { defaultValue: 'Out of stock' }),
+        className: 'text-red-400',
+      };
+    }
+
+    if (totalStockRemaining === 1) {
+      return {
+        label: t('product.lastItem', { defaultValue: '1 last item' }),
+        className: 'text-yellow-400',
+      };
+    }
+
+    return {
+      label: t('product.stockCount', { defaultValue: '{{count}} in stock', count: totalStockRemaining }),
+      className: 'text-green-400',
+    };
+  }, [totalStockRemaining, totalStockUnknown, t]);
 
   useEffect(() => {
     if (cartItem) return;
@@ -640,10 +703,25 @@ const ProductPage = () => {
                   </Button>
                 </div>
                 {typeof overallVariantRemaining === 'number' && (
-                  <p className="text-sm text-gray-400 mt-2">
+                  <p
+                    className={`text-sm mt-2 ${
+                      overallVariantRemaining === 0
+                        ? 'text-red-400'
+                        : overallVariantRemaining === 1
+                          ? 'text-yellow-400'
+                          : 'text-gray-400'
+                    }`}
+                  >
                     {overallVariantRemaining > 0
-                      ? t('product.remainingStock', { defaultValue: '{{count}} item(s) left', count: overallVariantRemaining })
+                      ? overallVariantRemaining === 1
+                        ? t('product.lastItem', { defaultValue: '1 last item' })
+                        : t('product.remainingStock', { defaultValue: '{{count}} item(s) left', count: overallVariantRemaining })
                       : t('product.noMoreStock', { defaultValue: 'No additional stock available' })}
+                  </p>
+                )}
+                {totalStockMeta.label && (
+                  <p className={`text-sm mt-1 ${totalStockMeta.className}`}>
+                    {totalStockMeta.label}
                   </p>
                 )}
               </div>
