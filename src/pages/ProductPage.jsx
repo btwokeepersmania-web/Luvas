@@ -14,10 +14,16 @@ import YouMayAlsoLike from '@/components/YouMayAlsoLike.jsx';
 
 const normalizeValue = (value) => String(value ?? '').trim().toLowerCase();
 
+const toPositiveInt = (value) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return null;
+  return Math.floor(numeric);
+};
+
 const ProductPage = () => {
   const { handle } = useParams();
   const { fetchProductByHandle } = useShopify();
-  const { addToCart } = useCart();
+  const { addToCart, findCartItem, updateQuantity, cartItems } = useCart();
   const { formatPrice, country, language } = useLocalization();
   const { t } = useTranslation();
 
@@ -168,17 +174,68 @@ const ProductPage = () => {
     return variantMap.get(key) || null;
   }, [variantMap, buildVariantKey, selectedOptions]);
 
-  const maxQuantity = useMemo(() => selectedVariant?.quantityAvailable ?? 0, [selectedVariant]);
+  const cartItem = useMemo(() => {
+    if (!selectedVariant) return null;
+    return findCartItem(selectedVariant.id, currentCustomAttributes);
+  }, [selectedVariant, currentCustomAttributes, findCartItem]);
+
+  const cartItemQuantity = cartItem?.quantity ?? 0;
+  const normalizedSelectedVariantId = selectedVariant ? String(selectedVariant.id) : null;
+
+  const totalVariantInCart = useMemo(() => {
+    if (!normalizedSelectedVariantId) return 0;
+    return cartItems.reduce((total, item) => (
+      String(item.variantId) === normalizedSelectedVariantId ? total + item.quantity : total
+    ), 0);
+  }, [cartItems, normalizedSelectedVariantId]);
+
+  const variantQuantityAvailable = toPositiveInt(selectedVariant?.quantityAvailable);
+  const otherVariantQuantity = Math.max(0, totalVariantInCart - cartItemQuantity);
+  const effectiveMaxQuantity = variantQuantityAvailable !== null
+    ? Math.max(0, variantQuantityAvailable - otherVariantQuantity)
+    : null;
+  const overallVariantRemaining = variantQuantityAvailable !== null
+    ? Math.max(0, variantQuantityAvailable - totalVariantInCart)
+    : null;
+  const maxQuantity = effectiveMaxQuantity;
+
+  const displayQuantity = cartItem ? cartItem.quantity : quantity;
+  const increaseDisabled = maxQuantity !== null && displayQuantity >= maxQuantity;
+  const decreaseDisabled = cartItem ? cartItem.quantity <= 0 : quantity <= 1;
+  const addButtonDisabled =
+    !selectedVariant ||
+    selectedVariant.availableForSale === false ||
+    (maxQuantity !== null && maxQuantity <= 0 && !cartItem);
+
+  const primaryPrice = selectedVariant?.price ?? product?.price;
+  const primaryCurrency = selectedVariant?.currency ?? product?.currency;
+  const comparePrice = selectedVariant?.compareAtPrice ?? product?.compareAtPrice;
+  const priceNumber = Number(primaryPrice);
+  const compareNumber = Number(comparePrice);
+  const hasDiscount = Number.isFinite(priceNumber) && Number.isFinite(compareNumber) && compareNumber > priceNumber;
+  const discountPercent = hasDiscount
+    ? Math.max(1, Math.round(((compareNumber - priceNumber) / compareNumber) * 100))
+    : null;
 
   useEffect(() => {
-    if (!selectedVariant) return;
-    if (maxQuantity > 0 && quantity > maxQuantity) {
-      setQuantity(maxQuantity);
-    }
-    if (maxQuantity === 0 && quantity !== 1) {
+    if (cartItem) return;
+    if (maxQuantity !== null) {
+      if (maxQuantity > 0 && quantity > maxQuantity) {
+        setQuantity(maxQuantity);
+      }
+      if (maxQuantity === 0 && quantity !== 1) {
+        setQuantity(1);
+      }
+    } else if (quantity < 1) {
       setQuantity(1);
     }
-  }, [selectedVariant, maxQuantity, quantity]);
+  }, [cartItem, maxQuantity, quantity]);
+
+  useEffect(() => {
+    if (cartItem) {
+      setQuantity(cartItem.quantity || 1);
+    }
+  }, [cartItem]);
 
   const imageIndexMap = useMemo(() => {
     const map = new Map();
@@ -259,19 +316,61 @@ const ProductPage = () => {
     return { nameLabel, numberLabel };
   }, [customizationFields]);
 
-  const handleAddToCart = useCallback(() => {
-    if (!selectedVariant || !selectedVariant.availableForSale) return;
-
-    const customAttributes = [];
+  const currentCustomAttributes = useMemo(() => {
+    const attributes = [];
     if (gloveId) {
-      customAttributes.push({ key: personalizationLabels.nameLabel, value: gloveId });
+      attributes.push({ key: personalizationLabels.nameLabel, value: gloveId });
     }
     if (number) {
-      customAttributes.push({ key: personalizationLabels.numberLabel, value: number });
+      attributes.push({ key: personalizationLabels.numberLabel, value: number });
+    }
+    return attributes;
+  }, [gloveId, number, personalizationLabels]);
+
+  const incrementQuantity = useCallback(() => {
+    if (!selectedVariant) return;
+
+    if (cartItem) {
+      updateQuantity(selectedVariant.id, cartItem.quantity + 1, currentCustomAttributes);
+      return;
     }
 
-    addToCart(product, selectedVariant, quantity, customAttributes);
-  }, [addToCart, gloveId, number, personalizationLabels, product, quantity, selectedVariant]);
+    setQuantity((prev) => {
+      if (maxQuantity !== null) {
+        if (maxQuantity <= 0) {
+          return 1;
+        }
+        return Math.min(prev + 1, maxQuantity);
+      }
+      return prev + 1;
+    });
+  }, [selectedVariant, cartItem, updateQuantity, currentCustomAttributes, maxQuantity]);
+
+  const decrementQuantity = useCallback(() => {
+    if (!selectedVariant) return;
+
+    if (cartItem) {
+      updateQuantity(selectedVariant.id, cartItem.quantity - 1, currentCustomAttributes);
+      return;
+    }
+
+    setQuantity((prev) => Math.max(1, prev - 1));
+  }, [selectedVariant, cartItem, updateQuantity, currentCustomAttributes]);
+
+  const handleAddToCart = useCallback(() => {
+    if (!selectedVariant || selectedVariant.availableForSale === false) return;
+
+    if (cartItem) {
+      updateQuantity(selectedVariant.id, displayQuantity, currentCustomAttributes);
+      return;
+    }
+
+    if (maxQuantity !== null && maxQuantity <= 0) {
+      return;
+    }
+
+    addToCart(product, selectedVariant, quantity, currentCustomAttributes);
+  }, [addToCart, cartItem, currentCustomAttributes, displayQuantity, maxQuantity, product, quantity, selectedVariant, updateQuantity]);
 
   const handleNextImage = useCallback(() => {
     if (!images.length) return;
@@ -405,17 +504,19 @@ const ProductPage = () => {
               initial={{ x: 50, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.5 }}
-              className="flex items-baseline gap-4 mb-4"
+              className="flex flex-wrap items-center gap-4 mb-4"
             >
               <span className="text-4xl font-bold text-yellow-400">
-                {formatPrice(selectedVariant?.price || product.price, selectedVariant?.currency || product.currency)}
+                {formatPrice(primaryPrice, primaryCurrency)}
               </span>
-              {(selectedVariant?.compareAtPrice || product.compareAtPrice) && (
+              {comparePrice && (
                 <span className="text-xl text-gray-500 line-through">
-                  {formatPrice(
-                    selectedVariant?.compareAtPrice || product.compareAtPrice,
-                    selectedVariant?.currency || product.currency
-                  )}
+                  {formatPrice(comparePrice, primaryCurrency)}
+                </span>
+              )}
+              {hasDiscount && discountPercent && (
+                <span className="px-2 py-1 text-xs font-semibold uppercase rounded bg-red-500/90 text-black tracking-wide">
+                  {t('product.savePercent', { defaultValue: 'Save {{percent}}%', percent: discountPercent })}
                 </span>
               )}
             </motion.div>
@@ -503,26 +604,49 @@ const ProductPage = () => {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                    onClick={decrementQuantity}
                     className="border-gray-700"
-                    disabled={quantity <= 1}
+                    disabled={decreaseDisabled}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
-                  <span className="text-xl font-bold w-10 text-center">{quantity}</span>
+                  <span className="text-xl font-bold w-10 text-center">{displayQuantity}</span>
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setQuantity((prev) => Math.min(prev + 1, maxQuantity || prev + 1))}
+                    onClick={incrementQuantity}
                     className="border-gray-700"
-                    disabled={maxQuantity !== 0 && quantity >= maxQuantity}
+                    disabled={increaseDisabled}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {typeof overallVariantRemaining === 'number' && (
+                  <p className="text-sm text-gray-400 mt-2">
+                    {overallVariantRemaining > 0
+                      ? t('product.remainingStock', { defaultValue: '{{count}} item(s) left', count: overallVariantRemaining })
+                      : t('product.noMoreStock', { defaultValue: 'No additional stock available' })}
+                  </p>
+                )}
               </div>
             </div>
 
+            {cartItem && (
+              <div className="flex items-center justify-between mb-3 text-yellow-400 font-semibold">
+                <span className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5" />
+                  {t('In Cart')} ({cartItem.quantity})
+                </span>
+                {maxQuantity !== null && (
+                  <span className="text-xs text-gray-300">
+                    {t('product.additionalAvailable', {
+                      defaultValue: '{{count}} more available',
+                      count: Math.max(0, maxQuantity - cartItem.quantity),
+                    })}
+                  </span>
+                )}
+              </div>
+            )}
             <motion.div
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -532,11 +656,15 @@ const ProductPage = () => {
               <Button
                 onClick={handleAddToCart}
                 size="lg"
-                disabled={!selectedVariant || !selectedVariant.availableForSale}
+                disabled={addButtonDisabled}
                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-lg flex items-center gap-2 py-6 disabled:bg-gray-600 disabled:cursor-not-allowed"
               >
                 <ShoppingCart className="h-6 w-6" />
-                {selectedVariant?.availableForSale ? t('Add to Cart') : t('Sold Out')}
+                {cartItem
+                  ? t('product.updateCartButton', { defaultValue: 'Update Cart' })
+                  : selectedVariant?.availableForSale
+                    ? t('Add to Cart')
+                    : t('Sold Out')}
               </Button>
             </motion.div>
           </div>

@@ -21,6 +21,7 @@ const Cart = () => {
     getTotalItems,
     note,
     setNote,
+    getVariantQuantityInCart,
   } = useCart();
   
   const { createCartAndGetCheckoutUrl } = useShopify();
@@ -160,7 +161,14 @@ const Cart = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {cartItems.map((item) => (
+                  {cartItems.map((item) => {
+                    const variantTotal = getVariantQuantityInCart(item.variantId);
+                    const remainingStock = typeof item.maxQuantity === 'number'
+                      ? Math.max(0, item.maxQuantity - variantTotal)
+                      : null;
+                    const plusDisabled = typeof remainingStock === 'number' && remainingStock <= 0;
+
+                    return (
                     <motion.div
                       key={`${item.variantId}-${JSON.stringify(item.customAttributes)}`}
                       layout
@@ -207,11 +215,19 @@ const Cart = () => {
                             variant="outline"
                             size="icon"
                             onClick={() => updateQuantity(item.variantId, item.quantity + 1, item.customAttributes)}
-                            className="h-8 w-8 border-yellow-500/30 text-yellow-400 hover:bg-yellow-500 hover:text-black"
+                            disabled={plusDisabled}
+                            className="h-8 w-8 border-yellow-500/30 text-yellow-400 hover:bg-yellow-500 hover:text-black disabled:opacity-60"
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
+                        {typeof remainingStock === 'number' && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {remainingStock > 0
+                              ? t('product.remainingStock', { defaultValue: '{{count}} item(s) left', count: remainingStock })
+                              : t('product.noMoreStock', { defaultValue: 'No additional stock available' })}
+                          </p>
+                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -222,7 +238,8 @@ const Cart = () => {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </motion.div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
