@@ -35,7 +35,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from '@/components/ui/alert-dialog.jsx';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 
 import {
   getCustomerByEmail,
@@ -515,9 +514,10 @@ const AccountAddresses = () => {
                   <div className="space-y-2">
                     <Label htmlFor="country">{t('account.addresses.country')} *</Label>
                     {isTouchDevice ? (
-                      <Select
+                      <select
                         value={formData.countryCode || ''}
-                        onValueChange={(code) => {
+                        onChange={(event) => {
+                          const code = event.target.value;
                           const option = countryMapByCode.get(code);
                           setFormData((prev) => ({
                             ...prev,
@@ -525,18 +525,15 @@ const AccountAddresses = () => {
                             countryCode: code,
                           }));
                         }}
+                        className="bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                       >
-                        <SelectTrigger className="bg-gray-800 border-gray-700 text-left">
-                          <SelectValue placeholder={t('account.addresses.selectCountry')} />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-64 overflow-y-auto bg-gray-900 text-white" position="popper">
-                          {countryOptions.map((option) => (
-                            <SelectItem key={option.code} value={option.code}>
-                              {option.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        <option value="">{t('account.addresses.selectCountry')}</option>
+                        {countryOptions.map((option) => (
+                          <option key={option.code} value={option.code}>
+                            {option.name}
+                          </option>
+                        ))}
+                      </select>
                     ) : (
                       <>
                         <Input

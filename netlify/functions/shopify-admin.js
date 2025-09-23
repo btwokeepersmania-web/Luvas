@@ -10,12 +10,14 @@ const API_VERSION = process.env.SHOPIFY_ADMIN_API_VERSION || process.env.VITE_SH
 
 const isConfigured = Boolean(SHOP_DOMAIN && ADMIN_TOKEN);
 
+const ADMIN_BASE_URL = `https://${SHOP_DOMAIN}/admin/api/${API_VERSION}`;
+
 async function adminFetch(query, variables = {}) {
   if (!isConfigured) {
     throw new Error('Shopify Admin API not configured');
   }
 
-  const response = await fetch(`https://${SHOP_DOMAIN}/admin/api/${API_VERSION}/graphql.json`, {
+  const response = await fetch(`${ADMIN_BASE_URL}/graphql.json`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -43,6 +45,74 @@ async function adminFetch(query, variables = {}) {
 
   return json.data;
 }
+
+async function adminRestFetch(path, { method = 'GET', headers = {}, body } = {}) {
+  if (!isConfigured) {
+    throw new Error('Shopify Admin API not configured');
+  }
+
+  const url = `${ADMIN_BASE_URL}/${path.replace(/^\/+/, '')}`;
+  const response = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': ADMIN_TOKEN,
+      ...headers,
+    },
+    body,
+  });
+
+  const text = await response.text();
+  let json = null;
+  if (text) {
+    try {
+      json = JSON.parse(text);
+    } catch (err) {
+      throw new Error(`Invalid JSON response from Shopify Admin REST API: ${text}`);
+    }
+  }
+
+  if (!response.ok) {
+    const message = json?.errors || json?.error || json?.message || `${response.status} ${response.statusText}`;
+    throw new Error(Array.isArray(message) ? message.join(', ') : message);
+  }
+
+  return json;
+}
+
+const toNumericId = (id) => {
+  if (typeof id !== 'string') return id;
+  const parts = id.split('/');
+  return parts[parts.length - 1];
+};
+
+const ensureGlobalId = (id, type = 'MailingAddress') => {
+  if (!id) return null;
+  if (typeof id === 'string' && id.startsWith('gid://')) {
+    return id;
+  }
+  return `gid://shopify/${type}/${id}`;
+};
+
+const normalizeAddressForClient = (address) => {
+  if (!address) return null;
+  return {
+    id: ensureGlobalId(address.id),
+    firstName: address.firstName ?? address.first_name ?? null,
+    lastName: address.lastName ?? address.last_name ?? null,
+    company: address.company ?? null,
+    address1: address.address1 ?? null,
+    address2: address.address2 ?? null,
+    city: address.city ?? null,
+    province: address.province ?? null,
+    provinceCode: address.provinceCode ?? address.province_code ?? null,
+    zip: address.zip ?? null,
+    country: address.country ?? null,
+    countryCode: address.countryCode ?? address.country_code ?? null,
+    phone: address.phone ?? null,
+    default: address.default ?? address.isDefault ?? false,
+  };
+};
 
 const CUSTOMER_FRAGMENT = `
   id
@@ -228,119 +298,63 @@ async function updateCustomerProfile(customerId, profileData) {
 }
 
 async function createCustomerAddress(customerId, address) {
-  const mutation = `
-    mutation customerAddressCreate($customerId: ID!, $address: MailingAddressInput!) {
-      customerAddressCreate(customerId: $customerId, address: $address) {
-        customerAddress {
-          id
-          firstName
-          lastName
-          company
-          address1
-          address2
-          city
-          province
-          provinceCode
-          zip
-          country
-          countryCode
-          phone
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
+  const numericCustomerId = toNumericId(customerId);
+  const payload = {
+    address,
+  };
 
-  const data = await adminFetch(mutation, { customerId, address });
-  const result = data.customerAddressCreate;
-  if (result?.userErrors?.length) {
-    throw new Error(result.userErrors.map(e => e.message).join(', '));
+  const data = await adminRestFetch(`customers/${numericCustomerId}/addresses.json`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  const result = data?.customer_address;
+  if (!result) {
+    throw new Error('Failed to create address.');
   }
-  return result?.customerAddress || null;
+  return normalizeAddressForClient(result);
 }
 
 async function updateCustomerAddress(customerId, addressId, address) {
-  const mutation = `
-    mutation customerAddressUpdate($customerId: ID!, $addressId: ID!, $address: MailingAddressInput!) {
-      customerAddressUpdate(customerId: $customerId, addressId: $addressId, address: $address) {
-        customerAddress {
-          id
-          firstName
-          lastName
-          company
-          address1
-          address2
-          city
-          province
-          provinceCode
-          zip
-          country
-          countryCode
-          phone
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
+  const numericCustomerId = toNumericId(customerId);
+  const numericAddressId = toNumericId(addressId);
 
-  const data = await adminFetch(mutation, { customerId, addressId, address });
-  const result = data.customerAddressUpdate;
-  if (result?.userErrors?.length) {
-    throw new Error(result.userErrors.map(e => e.message).join(', '));
+  const payload = {
+    address,
+  };
+
+  const data = await adminRestFetch(`customers/${numericCustomerId}/addresses/${numericAddressId}.json`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  const result = data?.customer_address;
+  if (!result) {
+    throw new Error('Failed to update address.');
   }
-  return result?.customerAddress || null;
+  return normalizeAddressForClient(result);
 }
 
 async function deleteCustomerAddress(customerId, addressId) {
-  const mutation = `
-    mutation customerAddressDelete($customerId: ID!, $addressId: ID!) {
-      customerAddressDelete(customerId: $customerId, addressId: $addressId) {
-        deletedCustomerAddressId
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
+  const numericCustomerId = toNumericId(customerId);
+  const numericAddressId = toNumericId(addressId);
 
-  const data = await adminFetch(mutation, { customerId, addressId });
-  const result = data.customerAddressDelete;
-  if (result?.userErrors?.length) {
-    throw new Error(result.userErrors.map(e => e.message).join(', '));
-  }
-  return result?.deletedCustomerAddressId || null;
+  await adminRestFetch(`customers/${numericCustomerId}/addresses/${numericAddressId}.json`, {
+    method: 'DELETE',
+  });
+
+  return ensureGlobalId(numericAddressId);
 }
 
 async function setDefaultAddress(customerId, addressId) {
-  const mutation = `
-    mutation customerDefaultAddressUpdate($customerId: ID!, $addressId: ID!) {
-      customerDefaultAddressUpdate(customerId: $customerId, addressId: $addressId) {
-        customer {
-          defaultAddress {
-            id
-          }
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
+  const numericCustomerId = toNumericId(customerId);
+  const numericAddressId = toNumericId(addressId);
 
-  const data = await adminFetch(mutation, { customerId, addressId });
-  const result = data.customerDefaultAddressUpdate;
-  if (result?.userErrors?.length) {
-    throw new Error(result.userErrors.map(e => e.message).join(', '));
-  }
-  return result?.customer?.defaultAddress || null;
+  const data = await adminRestFetch(`customers/${numericCustomerId}/addresses/${numericAddressId}/default.json`, {
+    method: 'PUT',
+  });
+
+  return normalizeAddressForClient(data?.customer_address);
 }
 
 async function getOrderDetails(orderId) {

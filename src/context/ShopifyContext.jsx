@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocalization } from './LocalizationContext.jsx';
 import { createShopifyClient } from '@/lib/shopify/client.js';
 import { fetchShopInfo } from '@/lib/shopify/queries/shop.js';
@@ -22,7 +22,11 @@ export const useShopify = () => {
 };
 
 export const ShopifyProvider = ({ children }) => {
-  const { country, language } = useLocalization();
+  const {
+    country,
+    language,
+    localization,
+  } = useLocalization();
   const [shopInfo, setShopInfo] = useState(null);
   const [products, setProducts] = useState([]);
   const [collections, setCollections] = useState([]);
@@ -31,34 +35,40 @@ export const ShopifyProvider = ({ children }) => {
 
   const client = useMemo(() => createShopifyClient(), []);
 
-  const shopifyFetch = async (query, variables = {}) => {
+  const DEFAULT_COUNTRY_CODE = import.meta.env.VITE_DEFAULT_COUNTRY_CODE || 'GB';
+  const DEFAULT_LANGUAGE_CODE = import.meta.env.VITE_DEFAULT_LANGUAGE_CODE || 'EN';
+
+  const { resolvedCountry, resolvedLanguage } = useMemo(() => {
+    const fallbackCountry = country
+      || localization?.availableCountries?.find((item) => item.isoCode === DEFAULT_COUNTRY_CODE)
+      || localization?.availableCountries?.[0]
+      || (DEFAULT_COUNTRY_CODE ? { isoCode: DEFAULT_COUNTRY_CODE } : null);
+
+    const fallbackLanguage = language
+      || fallbackCountry?.availableLanguages?.find((item) => item.isoCode === DEFAULT_LANGUAGE_CODE)
+      || fallbackCountry?.availableLanguages?.[0]
+      || (DEFAULT_LANGUAGE_CODE ? { isoCode: DEFAULT_LANGUAGE_CODE } : null);
+
+    return {
+      resolvedCountry: fallbackCountry,
+      resolvedLanguage: fallbackLanguage,
+    };
+  }, [country, language, localization, DEFAULT_COUNTRY_CODE, DEFAULT_LANGUAGE_CODE]);
+
+  const shopifyFetch = useCallback(async (query, variables = {}) => {
     try {
       if (!client) {
         throw new Error('Shopify configuration is missing.');
       }
 
-      // If localization isn't ready yet, wait briefly for it (up to timeout)
-      const waitForLocalization = async (timeout = 3000) => {
-        const start = Date.now();
-        while ((!country || !language) && (Date.now() - start) < timeout) {
-          // eslint-disable-next-line no-await-in-loop
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-      };
-
-      await waitForLocalization(3000);
-
-      if (!country || !language) {
-        // Provide a non-throwing fallback to avoid crashing render flows; return an empty object
-        const msg = 'Localization not initialized yet.';
-        console.warn('Shopify fetch aborted:', msg);
-        throw new Error(msg);
+      if (!resolvedCountry?.isoCode || !resolvedLanguage?.isoCode) {
+        throw new Error('Localization settings unavailable.');
       }
 
       const contextVariables = {
         ...variables,
-        country: country.isoCode,
-        language: language.isoCode,
+        country: resolvedCountry.isoCode,
+        language: resolvedLanguage.isoCode,
       };
       return await client.request(query, contextVariables);
     } catch (err) {
@@ -66,7 +76,7 @@ export const ShopifyProvider = ({ children }) => {
       const errorMessage = err.response?.errors?.[0]?.message || err.message;
       throw new Error(errorMessage);
     }
-  };
+  }, [client, resolvedCountry?.isoCode, resolvedLanguage?.isoCode]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -75,8 +85,8 @@ export const ShopifyProvider = ({ children }) => {
         setError('Shopify configuration is missing.');
         return;
       }
-      if (!country || !language) {
-        setLoading(false);
+
+      if (!resolvedCountry?.isoCode || !resolvedLanguage?.isoCode) {
         return;
       }
       setLoading(true);
@@ -97,7 +107,7 @@ export const ShopifyProvider = ({ children }) => {
       }
     };
     loadData();
-  }, [country, language, client]);
+  }, [client, resolvedCountry?.isoCode, resolvedLanguage?.isoCode, shopifyFetch]);
 
   const value = {
     shopInfo,
