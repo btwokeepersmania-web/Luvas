@@ -69,13 +69,21 @@ const LoginPage = () => {
 
   const handleHostedLogin = () => {
     sessionStorage.setItem('auth_return_to', from || '/account');
-    openPopupOrRedirect(shopifyLoginUrl);
+    setLoading(true);
+    initiateLogin({ mode: 'login' }).catch((error) => {
+      console.error('Hosted login initiation failed:', error);
+      openPopupOrRedirect(shopifyLoginUrl);
+    });
   };
 
   const handleHostedRegister = (event) => {
     if (event && event.preventDefault) event.preventDefault();
     sessionStorage.setItem('auth_return_to', from || '/account');
-    openPopupOrRedirect(shopifyRegisterUrl);
+    setLoading(true);
+    initiateLogin({ mode: 'register' }).catch((error) => {
+      console.error('Hosted register initiation failed:', error);
+      openPopupOrRedirect(shopifyRegisterUrl);
+    });
   };
 
   useEffect(() => {

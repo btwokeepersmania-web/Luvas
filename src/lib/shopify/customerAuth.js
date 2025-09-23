@@ -67,7 +67,7 @@ function clearAuthData() {
 /**
  * Initiate OAuth 2.0 authentication flow
  */
-export async function initiateLogin() {
+export async function initiateLogin({ mode = 'login' } = {}) {
   if (!CLIENT_ID || !SHOP_DOMAIN) {
     throw new Error('Shopify Customer Account API not configured. Please add VITE_SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID to your environment variables.');
   }
@@ -83,16 +83,17 @@ export async function initiateLogin() {
     state: state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
+    ...(mode === 'register' ? { action: 'register' } : {}),
   });
 
   const authUrl = `${ENDPOINTS.authorize}?${params.toString()}`;
 
   const popupFeatures = 'width=520,height=640,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes';
   const popup = window.open(authUrl, 'shopify-customer-login', popupFeatures);
-  const mode = popup ? 'popup' : 'redirect';
+  const resultMode = popup ? 'popup' : 'redirect';
 
   // Store PKCE verifier and state for later verification
-  storeAuthData({ codeVerifier, state, mode });
+  storeAuthData({ codeVerifier, state, mode: resultMode });
 
   if (popup) {
     try {
