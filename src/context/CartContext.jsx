@@ -53,6 +53,21 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('b2goalkeeping-cart', JSON.stringify(cartData));
   }, [cartItems, note]);
 
+  const persistRemoteCart = useCallback(async (state) => {
+    if (!remoteCustomer?.id) return;
+    try {
+      if (state.items.length === 0 && (!state.note || state.note.trim() === '')) {
+        await clearCustomerCart(remoteCustomer.id);
+        setRemoteCustomer((prev) => (prev ? { ...prev, savedCart: null } : prev));
+      } else {
+        await saveCustomerCart(remoteCustomer.id, state);
+        setRemoteCustomer((prev) => (prev ? { ...prev, savedCart: state } : prev));
+      }
+    } catch (error) {
+      console.error('Failed to persist cart state:', error);
+    }
+  }, [remoteCustomer?.id]);
+
   useEffect(() => {
     if (!remoteCustomer?.id) {
       hasHydratedRemoteRef.current = false;
@@ -60,21 +75,20 @@ export const CartProvider = ({ children }) => {
     }
 
     if (!hasHydratedRemoteRef.current) {
-      if (remoteCustomer.savedCart && Array.isArray(remoteCustomer.savedCart.items)) {
+      const saved = remoteCustomer.savedCart;
+      if (saved && Array.isArray(saved.items)) {
         skipNextSyncRef.current = true;
-        setCartItems(remoteCustomer.savedCart.items);
-        setNote(remoteCustomer.savedCart.note || '');
+        setCartItems(saved.items);
+        setNote(saved.note || '');
       } else {
         const currentState = cartStateRef.current;
         if (currentState.items.length > 0 || (currentState.note && currentState.note.trim() !== '')) {
-          saveCustomerCart(remoteCustomer.id, currentState).catch((error) => {
-            console.error('Failed to persist initial cart state:', error);
-          });
+          persistRemoteCart(currentState);
         }
       }
       hasHydratedRemoteRef.current = true;
     }
-  }, [remoteCustomer]);
+  }, [remoteCustomer, persistRemoteCart]);
 
   useEffect(() => {
     if (!remoteCustomer?.id) return;
@@ -86,19 +100,11 @@ export const CartProvider = ({ children }) => {
 
     const state = cartStateRef.current;
     const handler = setTimeout(() => {
-      if (state.items.length === 0 && (!state.note || state.note.trim() === '')) {
-        clearCustomerCart(remoteCustomer.id).catch((error) => {
-          console.error('Failed to clear remote cart state:', error);
-        });
-      } else {
-        saveCustomerCart(remoteCustomer.id, state).catch((error) => {
-          console.error('Failed to save remote cart state:', error);
-        });
-      }
+      persistRemoteCart(state);
     }, 500);
 
     return () => clearTimeout(handler);
-  }, [cartItems, note, remoteCustomer]);
+  }, [cartItems, note, remoteCustomer, persistRemoteCart]);
 
   const syncRemoteCustomer = useCallback((customer) => {
     if (customer?.id) {
