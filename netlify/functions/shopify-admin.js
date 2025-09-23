@@ -231,7 +231,7 @@ async function createCustomerAddress(customerId, address) {
   const mutation = `
     mutation customerAddressCreate($customerId: ID!, $address: MailingAddressInput!) {
       customerAddressCreate(customerId: $customerId, address: $address) {
-        address {
+        customerAddress {
           id
           firstName
           lastName
@@ -259,14 +259,14 @@ async function createCustomerAddress(customerId, address) {
   if (result?.userErrors?.length) {
     throw new Error(result.userErrors.map(e => e.message).join(', '));
   }
-  return result?.address || null;
+  return result?.customerAddress || null;
 }
 
 async function updateCustomerAddress(customerId, addressId, address) {
   const mutation = `
     mutation customerAddressUpdate($customerId: ID!, $addressId: ID!, $address: MailingAddressInput!) {
       customerAddressUpdate(customerId: $customerId, addressId: $addressId, address: $address) {
-        address {
+        customerAddress {
           id
           firstName
           lastName
@@ -294,14 +294,14 @@ async function updateCustomerAddress(customerId, addressId, address) {
   if (result?.userErrors?.length) {
     throw new Error(result.userErrors.map(e => e.message).join(', '));
   }
-  return result?.address || null;
+  return result?.customerAddress || null;
 }
 
 async function deleteCustomerAddress(customerId, addressId) {
   const mutation = `
     mutation customerAddressDelete($customerId: ID!, $addressId: ID!) {
       customerAddressDelete(customerId: $customerId, addressId: $addressId) {
-        deletedAddressId
+        deletedCustomerAddressId
         userErrors {
           field
           message
@@ -315,7 +315,7 @@ async function deleteCustomerAddress(customerId, addressId) {
   if (result?.userErrors?.length) {
     throw new Error(result.userErrors.map(e => e.message).join(', '));
   }
-  return result?.deletedAddressId || null;
+  return result?.deletedCustomerAddressId || null;
 }
 
 async function setDefaultAddress(customerId, addressId) {

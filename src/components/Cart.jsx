@@ -57,8 +57,10 @@ const Cart = () => {
         address2: defaultAddress.address2 || '',
         city: defaultAddress.city,
         province: defaultAddress.province || '',
+        provinceCode: defaultAddress.provinceCode || '',
         zip: defaultAddress.zip || '',
         country: defaultAddress.country,
+        countryCode: (defaultAddress.countryCode || '').toUpperCase(),
         phone: defaultAddress.phone || customer?.phone || '',
       } : null;
 

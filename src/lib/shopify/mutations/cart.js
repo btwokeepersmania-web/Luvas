@@ -29,34 +29,43 @@ export const createCartAndGetCheckoutUrl = async (
     buyerIdentity.phone = buyerInfo.phone;
   }
 
-  // Add delivery address if provided
-  if (shippingAddress) {
-    buyerIdentity.deliveryAddressPreferences = [{
-      deliveryAddress: {
-        address1: shippingAddress.address1,
-        address2: shippingAddress.address2 || null,
-        city: shippingAddress.city,
-        company: shippingAddress.company || null,
-        country: shippingAddress.country,
-        firstName: shippingAddress.firstName,
-        lastName: shippingAddress.lastName,
-        phone: shippingAddress.phone || null,
-        province: shippingAddress.province || null,
-        zip: shippingAddress.zip || null,
-      }
-    }];
+  if (shippingAddress?.countryCode) {
+    buyerIdentity.countryCode = shippingAddress.countryCode;
   }
 
   const cartInput = {
     lines: lineItemsInput,
   };
 
+  if (shippingAddress) {
+    const deliveryAddressInput = {
+      deliveryAddress: {
+        address1: shippingAddress.address1,
+        address2: shippingAddress.address2 || null,
+        city: shippingAddress.city,
+        company: shippingAddress.company || null,
+        countryCode: shippingAddress.countryCode || null,
+        firstName: shippingAddress.firstName,
+        lastName: shippingAddress.lastName,
+        phone: shippingAddress.phone || null,
+        provinceCode: shippingAddress.provinceCode || null,
+        zip: shippingAddress.zip || null,
+      },
+      oneTimeUse: true,
+      selected: true,
+    };
+
+    cartInput.delivery = {
+      addresses: [deliveryAddressInput],
+    };
+  }
+
   if (Object.keys(buyerIdentity).length > 0) {
     cartInput.buyerIdentity = buyerIdentity;
   }
 
-  if (note) {
-    cartInput.note = note;
+  if (note && note.trim().length > 0) {
+    cartInput.note = note.trim();
   }
 
   const mutation = gql`
