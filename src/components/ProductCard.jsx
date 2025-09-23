@@ -65,10 +65,9 @@ const ProductCard = ({ product }) => {
   const remainingStock = typeof effectiveMaxQuantity === 'number'
     ? Math.max(0, effectiveMaxQuantity - totalVariantInCart)
     : null;
-  const stockAllows = remainingStock === null || remainingStock > 0;
   const inCart = Boolean(cartItem);
-  const variantAvailable = Boolean(defaultVariant) && (defaultVariant.availableForSale !== false || stockAllows);
-  const canAddMore = variantAvailable && stockAllows;
+  const hasStockLimit = typeof effectiveMaxQuantity === 'number';
+  const canAddMore = Boolean(defaultVariant) && (!hasStockLimit || (remainingStock ?? 0) > 0);
 
   const handleMouseEnter = () => {
     if (productImages.length > 1) {
