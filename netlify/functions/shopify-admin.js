@@ -631,27 +631,7 @@ async function saveCustomerCartState(customerId, cartState) {
 }
 
 async function clearCustomerCartState(customerId) {
-  const mutation = `
-    mutation metafieldDelete($input: MetafieldDeleteInput!) {
-      metafieldDelete(input: $input) {
-        deletedId
-        userErrors { field message }
-      }
-    }
-  `;
-
-  const input = {
-    ownerId: customerId,
-    namespace: 'b2keeper',
-    key: 'saved_cart',
-  };
-
-  const data = await adminFetch(mutation, { input });
-  const result = data?.metafieldDelete;
-  if (result?.userErrors?.length) {
-    throw new Error(result.userErrors.map((err) => err.message).join(', '));
-  }
-  return true;
+  return setCustomerCartState(customerId, { items: [], note: '' });
 }
 
 async function getOrderDetails(orderId) {
