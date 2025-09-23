@@ -600,34 +600,41 @@ async function setDefaultAddress(customerId, addressId) {
   return normalizeAddressForClient(result?.customer?.defaultAddress);
 }
 
-async function saveCustomerCartState(customerId, cartState) {
-  if (!cartState) {
-    return clearCustomerCartState(customerId);
-  }
+const cartMetafieldInput = (customerId, cartState = {}) => ({
+  ownerId: customerId,
+  namespace: 'b2keeper',
+  key: 'saved_cart',
+  type: 'json',
+  value: JSON.stringify({
+    items: Array.isArray(cartState.items) ? cartState.items : [],
+    note: cartState.note || '',
+    updatedAt: new Date().toISOString(),
+  }),
+});
 
+async function setCustomerCartState(customerId, cartState) {
   const mutation = `
     mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
       metafieldsSet(metafields: $metafields) {
-        metafields { id value }
+        metafields { id }
         userErrors { field message }
       }
     }
   `;
 
-  const input = {
-    ownerId: customerId,
-    namespace: 'b2keeper',
-    key: 'saved_cart',
-    type: 'json',
-    value: JSON.stringify(cartState),
-  };
-
-  const data = await adminFetch(mutation, { metafields: [input] });
+  const data = await adminFetch(mutation, { metafields: [cartMetafieldInput(customerId, cartState)] });
   const result = data?.metafieldsSet;
   if (result?.userErrors?.length) {
     throw new Error(result.userErrors.map((err) => err.message).join(', '));
   }
   return true;
+}
+
+async function saveCustomerCartState(customerId, cartState) {
+  if (!cartState) {
+    return setCustomerCartState(customerId, { items: [], note: '' });
+  }
+  return setCustomerCartState(customerId, cartState);
 }
 
 async function clearCustomerCartState(customerId) {
