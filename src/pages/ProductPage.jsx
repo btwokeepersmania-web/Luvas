@@ -20,12 +20,24 @@ const toPositiveInt = (value) => {
   return Math.floor(numeric);
 };
 
+const useVariantStockCheck = () => {
+  return useCallback((variant) => {
+    if (!variant) return false;
+    const qty = toPositiveInt(variant.quantityAvailable);
+    if (qty !== null) {
+      return qty > 0;
+    }
+    return variant.availableForSale !== false;
+  }, []);
+};
+
 const ProductPage = () => {
   const { handle } = useParams();
   const { fetchProductByHandle } = useShopify();
   const { addToCart, findCartItem, updateQuantity, cartItems } = useCart();
   const { formatPrice, country, language } = useLocalization();
   const { t } = useTranslation();
+  const variantHasStock = useVariantStockCheck();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +65,7 @@ const ProductPage = () => {
 
         const initialOptions = {};
         if (Array.isArray(fetchedProduct.variants) && fetchedProduct.variants.length > 0) {
-          const firstAvailableVariant = fetchedProduct.variants.find((variant) => variant.availableForSale) || fetchedProduct.variants[0];
+          const firstAvailableVariant = fetchedProduct.variants.find((variant) => variantHasStock(variant)) || fetchedProduct.variants[0];
           if (firstAvailableVariant) {
             firstAvailableVariant.selectedOptions.forEach((option) => {
               initialOptions[option.name] = option.value;
@@ -80,7 +92,7 @@ const ProductPage = () => {
     };
 
     getProductData();
-  }, [handle, fetchProductByHandle, t, country, language]);
+  }, [handle, fetchProductByHandle, t, country, language, variantHasStock]);
 
   const images = product?.images ?? [];
   const options = product?.options ?? [];
@@ -133,7 +145,7 @@ const ProductPage = () => {
         if (!optionValueInfo.get(nameNorm).has(valueNorm)) {
           optionValueInfo.get(nameNorm).set(valueNorm, { exists: true, anyAvailable: false });
         }
-        if (variant.availableForSale) {
+        if (variantHasStock(variant)) {
           const info = optionValueInfo.get(nameNorm).get(valueNorm);
           info.anyAvailable = true;
           const key = `${nameNorm}|${valueNorm}`;
@@ -156,7 +168,7 @@ const ProductPage = () => {
       optionValueInfo,
       firstAvailableByOption,
     };
-  }, [variants, options]);
+  }, [variants, options, variantHasStock]);
 
   const { optionOrder, variantMap, optionValueInfo, firstAvailableByOption } = availability;
 
@@ -195,9 +207,9 @@ const ProductPage = () => {
       if (!variantMap.size) return false;
       const tentativeSelections = { ...selectedOptions, [optionName]: value };
       const variant = variantMap.get(buildVariantKey(tentativeSelections));
-      return variant ? Boolean(variant.availableForSale) : false;
+      return variant ? variantHasStock(variant) : false;
     },
-    [variantMap, selectedOptions, buildVariantKey]
+    [variantMap, selectedOptions, buildVariantKey, variantHasStock]
   );
 
   const handleOptionChange = useCallback(
@@ -205,7 +217,7 @@ const ProductPage = () => {
       setSelectedOptions((prev) => {
         const next = { ...prev, [optionName]: value };
         const exactVariant = variantMap.get(buildVariantKey(next));
-        if (exactVariant?.availableForSale) {
+        if (variantHasStock(exactVariant)) {
           return next;
         }
 
@@ -221,7 +233,7 @@ const ProductPage = () => {
         return next;
       });
     },
-    [variantMap, buildVariantKey, firstAvailableByOption]
+    [variantMap, buildVariantKey, firstAvailableByOption, variantHasStock]
   );
 
   const hasCustomizationOptions = useMemo(() => {
@@ -286,7 +298,8 @@ const ProductPage = () => {
       ? Math.max(0, variantQuantity - totalVariantInCart)
       : null;
     const stockAllows = maxQuantity === null || maxQuantity > 0 || Boolean(cartItem);
-    const variantAvailable = Boolean(selectedVariant) && (selectedVariant?.availableForSale !== false || stockAllows);
+    const variantSellable = variantHasStock(selectedVariant);
+    const variantAvailable = Boolean(selectedVariant) && (variantSellable || stockAllows);
     const displayQuantity = cartItem ? cartQuantity : quantity;
     const increaseDisabled = maxQuantity !== null && displayQuantity >= maxQuantity;
     const decreaseDisabled = cartItem ? cartQuantity <= 0 : quantity <= 1;
@@ -335,7 +348,7 @@ const ProductPage = () => {
       totalStockRemaining: aggregate.totalRemaining,
       totalStockUnknown: aggregate.hasUnknown,
     };
-  }, [cartItem, cartItems, product, quantity, selectedVariant]);
+  }, [cartItem, cartItems, product, quantity, selectedVariant, variantHasStock]);
 
   const {
     cartQuantity,

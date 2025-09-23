@@ -52,9 +52,11 @@ const Products = () => {
 
   const hasSellableStock = (variant) => {
     if (!variant) return false;
-    if (variant.availableForSale !== false) return true;
     const qty = toPositiveInt(variant.quantityAvailable);
-    return qty === null || qty > 0;
+    if (qty !== null) {
+      return qty > 0;
+    }
+    return variant.availableForSale !== false;
   };
 
   const selectDefaultVariant = (product) => {
