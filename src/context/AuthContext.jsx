@@ -266,9 +266,11 @@ export const AuthProvider = ({ children }) => {
 
     cartPersistTimeout.current = setTimeout(async () => {
       try {
-        if (state.items.length === 0 && (!state.note || state.note.trim() === '')) {
+        const shouldClear = state.items.length === 0 && (!state.note || state.note.trim() === '');
+        if (shouldClear) {
           await clearCustomerCart(customer.id);
           setCustomer((prev) => (prev ? { ...prev, savedCart: null } : prev));
+          localStorage.removeItem('b2goalkeeping-cart');
         } else {
           await saveCustomerCart(customer.id, state);
           setCustomer((prev) => (prev ? { ...prev, savedCart: state } : prev));
