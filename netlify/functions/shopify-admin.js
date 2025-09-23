@@ -74,7 +74,10 @@ async function adminRestFetch(path, { method = 'GET', headers = {}, body } = {})
 
   if (!response.ok) {
     const message = json?.errors || json?.error || json?.message || `${response.status} ${response.statusText}`;
-    throw new Error(Array.isArray(message) ? message.join(', ') : message);
+    const formattedMessage = Array.isArray(message)
+      ? message.map((item) => (typeof item === 'string' ? item : JSON.stringify(item))).join(', ')
+      : (typeof message === 'string' ? message : JSON.stringify(message));
+    throw new Error(formattedMessage);
   }
 
   return json;
@@ -112,6 +115,31 @@ const normalizeAddressForClient = (address) => {
     phone: address.phone ?? null,
     default: address.default ?? address.isDefault ?? false,
   };
+};
+
+const toRestAddressPayload = (address = {}) => {
+  const countryCode = address.countryCode ?? address.country_code ?? null;
+  const provinceCode = address.provinceCode ?? address.province_code ?? null;
+
+  const mapped = {
+    first_name: address.firstName ?? address.first_name ?? null,
+    last_name: address.lastName ?? address.last_name ?? null,
+    company: address.company ?? null,
+    address1: address.address1 ?? null,
+    address2: address.address2 ?? null,
+    city: address.city ?? null,
+    province: address.province ?? null,
+    province_code: provinceCode ? String(provinceCode).toUpperCase() : null,
+    zip: address.zip ?? null,
+    country: address.country ?? null,
+    country_code: countryCode ? String(countryCode).toUpperCase() : null,
+    phone: address.phone ?? null,
+    default: typeof address.default === 'boolean' ? address.default : undefined,
+  };
+
+  return Object.fromEntries(
+    Object.entries(mapped).filter(([, value]) => value !== undefined && value !== null && value !== '')
+  );
 };
 
 const CUSTOMER_FRAGMENT = `
@@ -300,7 +328,7 @@ async function updateCustomerProfile(customerId, profileData) {
 async function createCustomerAddress(customerId, address) {
   const numericCustomerId = toNumericId(customerId);
   const payload = {
-    address,
+    address: toRestAddressPayload(address),
   };
 
   const data = await adminRestFetch(`customers/${numericCustomerId}/addresses.json`, {
@@ -320,7 +348,7 @@ async function updateCustomerAddress(customerId, addressId, address) {
   const numericAddressId = toNumericId(addressId);
 
   const payload = {
-    address,
+    address: toRestAddressPayload(address),
   };
 
   const data = await adminRestFetch(`customers/${numericCustomerId}/addresses/${numericAddressId}.json`, {
