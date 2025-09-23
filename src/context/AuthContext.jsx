@@ -244,6 +244,13 @@ export const AuthProvider = ({ children }) => {
       }
       cartHydrated.current = true;
     }
+
+    return () => {
+      if (cartPersistTimeout.current) {
+        clearTimeout(cartPersistTimeout.current);
+        cartPersistTimeout.current = null;
+      }
+    };
   }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart]);
 
   useEffect(() => {
