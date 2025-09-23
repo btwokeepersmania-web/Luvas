@@ -44,6 +44,24 @@ const Products = () => {
     transition: { type: 'spring', stiffness: 300 },
   };
 
+  const selectDefaultVariant = (product) => {
+    if (Array.isArray(product?.variants) && product.variants.length > 0) {
+      return product.variants.find((variant) => variant.availableForSale) || product.variants[0];
+    }
+
+    if (product?.variantId) {
+      return {
+        id: product.variantId,
+        availableForSale: product.availableForSale ?? true,
+        price: product.price,
+        currency: product.currency,
+        compareAtPrice: product.compareAtPrice,
+      };
+    }
+
+    return null;
+  };
+
   return (
     <section id="produtos" className="py-20 bg-gray-950">
       <div className="container mx-auto px-4">
@@ -76,7 +94,14 @@ const Products = () => {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 justify-items-center">
-          {products.map((product, index) => (
+          {products.map((product, index) => {
+            const defaultVariant = selectDefaultVariant(product);
+            const inCart = defaultVariant ? isItemInCart(defaultVariant.id) : false;
+            const price = defaultVariant?.price ?? product.price;
+            const currency = defaultVariant?.currency ?? product.currency;
+            const compareAtPrice = defaultVariant?.compareAtPrice ?? product.compareAtPrice;
+
+            return (
             <motion.div
               key={product.id}
               custom={index}
@@ -115,11 +140,11 @@ const Products = () => {
                 <div className="flex items-center justify-between mb-4 mt-auto">
                   <div className="flex flex-col">
                     <span className="text-xl font-bold text-yellow-400">
-                      {formatPrice(product.price, product.currency)}
+                      {formatPrice(price ?? product.price ?? '0', currency)}
                     </span>
-                    {product.compareAtPrice && (
+                    {compareAtPrice && (
                       <span className="text-xs text-gray-500 line-through">
-                        {formatPrice(product.compareAtPrice, product.currency)}
+                        {formatPrice(compareAtPrice, currency)}
                       </span>
                     )}
                   </div>
@@ -127,12 +152,21 @@ const Products = () => {
 
                 <div className="flex items-center gap-2">
                   <Button
-                    onClick={() => addToCart(product, null, 1, [])}
-                    disabled={isItemInCart(product.variantId)}
+                    onClick={() => {
+                      if (!defaultVariant || defaultVariant.availableForSale === false) {
+                        return;
+                      }
+                      addToCart(product, defaultVariant, 1, []);
+                    }}
+                    disabled={!defaultVariant || defaultVariant.availableForSale === false || inCart}
                     className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold flex items-center gap-2 disabled:bg-gray-500 disabled:cursor-not-allowed"
                   >
                     <ShoppingCart className="h-4 w-4" />
-                    {isItemInCart(product.variantId) ? t('In Cart') : t('Add to Cart')}
+                    {inCart
+                      ? t('In Cart')
+                      : (!defaultVariant || defaultVariant.availableForSale === false)
+                        ? t('product.outOfStock', { defaultValue: 'Out of stock' })
+                        : t('Add to Cart')}
                   </Button>
                   <Link to={`/products/${product.handle}`} className="flex-shrink-0">
                     <Button variant="outline" size="icon" className="border-yellow-500 text-yellow-400 hover:bg-yellow-500 hover:text-black">
@@ -142,7 +176,8 @@ const Products = () => {
                 </div>
               </div>
             </motion.div>
-          ))}
+            );
+          })}
         </div>
 
         {products.length === 0 && !loading && !error && (
