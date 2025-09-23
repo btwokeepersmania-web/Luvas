@@ -77,6 +77,24 @@ const ProductPage = () => {
   const options = product?.options ?? [];
   const variants = product?.variants ?? [];
 
+  useEffect(() => {
+    if (!images.length) return undefined;
+    const preloaders = images.map((image) => {
+      if (!image?.url) return null;
+      const img = new Image();
+      img.src = image.url;
+      return img;
+    });
+    return () => {
+      preloaders.forEach((img) => {
+        if (img) {
+          img.onload = null;
+          img.onerror = null;
+        }
+      });
+    };
+  }, [images]);
+
   const availability = useMemo(() => {
     if (!variants.length || !options.length) {
       return {
@@ -170,10 +188,10 @@ const ProductPage = () => {
   useEffect(() => {
     if (!selectedVariant?.image?.id) return;
     const newIndex = imageIndexMap.get(selectedVariant.image.id);
-    if (typeof newIndex === 'number' && newIndex !== selectedImageIndex) {
-      setSelectedImageIndex(newIndex);
+    if (typeof newIndex === 'number') {
+      setSelectedImageIndex((prev) => (prev === newIndex ? prev : newIndex));
     }
-  }, [selectedVariant, imageIndexMap, selectedImageIndex]);
+  }, [selectedVariant, imageIndexMap]);
 
   const isVariantCombinationAvailable = useCallback(
     (optionName, value) => {
@@ -283,6 +301,7 @@ const ProductPage = () => {
 
   const hasImages = images.length > 0;
   const currentImage = hasImages ? images[Math.min(selectedImageIndex, images.length - 1)] : null;
+  const currentImageUrl = currentImage?.url;
 
   return (
     <>
@@ -309,10 +328,10 @@ const ProductPage = () => {
               {hasImages ? (
                 <img
                   key={currentImage?.id ?? selectedImageIndex}
-                  src={currentImage?.url}
+                  src={currentImageUrl}
                   alt={currentImage?.altText || product.title}
                   className="w-full h-full object-cover product-main-image transition-opacity duration-300 ease-in-out"
-                  loading="eager"
+                  loading={selectedImageIndex === 0 ? 'eager' : 'lazy'}
                   decoding="async"
                   style={{ opacity: 1 }}
                 />
@@ -358,7 +377,7 @@ const ProductPage = () => {
                     )}
                   >
                     <img
-                      src={image.url}
+                      src={image.thumbnailUrl || image.url}
                       alt={`Thumbnail ${index + 1}`}
                       className="w-full h-full object-cover"
                       loading="lazy"

@@ -59,7 +59,9 @@ const ProductCard = ({ product }) => {
   };
 
 
-  const imageToShow = product.images[hoveredImageIndex] || product.images[0];
+  const imageToShow = product.images[hoveredImageIndex] || product.images[0] || {};
+  const mainImageUrl = imageToShow.url;
+  const previewImageUrl = imageToShow.thumbnailUrl || mainImageUrl;
 
   return (
     <motion.div
@@ -70,8 +72,8 @@ const ProductCard = ({ product }) => {
     >
       <Link to={`/products/${product.handle}`} ref={containerRef} className="relative overflow-hidden block h-56">
         <img
-          key={imageToShow.url}
-          src={imageToShow.url}
+          key={imageToShow.id || hoveredImageIndex}
+          src={mainImageUrl}
           alt={imageToShow.altText || product.title}
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"

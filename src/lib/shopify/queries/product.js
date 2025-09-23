@@ -19,7 +19,16 @@ export const fetchProducts = async (fetcher) => {
             handle
             description
             productType
-            images(first: 4) { edges { node { url altText } } }
+            images(first: 6) {
+              edges {
+                node {
+                  id
+                  altText
+                  url(transform: { maxWidth: 1200, crop: CENTER })
+                  thumbnail: url(transform: { maxWidth: 320, maxHeight: 320, crop: CENTER })
+                }
+              }
+            }
             options { name values }
             variants(first: 20) { edges { node { id title availableForSale price { amount currencyCode } compareAtPrice { amount currencyCode } } } }
           }
@@ -47,7 +56,16 @@ export const fetchProductByHandle = async (fetcher, handle) => {
           namespace
           value
         }
-        images(first: 10) { edges { node { id url altText } } }
+        images(first: 12) {
+          edges {
+            node {
+              id
+              altText
+              url(transform: { maxWidth: 1400, crop: CENTER })
+              thumbnail: url(transform: { maxWidth: 320, maxHeight: 320, crop: CENTER })
+            }
+          }
+        }
         options(first: 3) { id name values }
         variants(first: 250) { edges { node { id title availableForSale quantityAvailable price { amount currencyCode } compareAtPrice { amount currencyCode } image { id url altText } selectedOptions { name value } } } }
       }

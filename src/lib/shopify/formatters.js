@@ -6,11 +6,14 @@ export const formatProduct = (node) => ({
   descriptionHtml: node.descriptionHtml,
   productType: node.productType,
   metafields: node.metafields,
-  images: Array.isArray(node.images?.edges) ? node.images.edges.map(edge => ({
-    id: edge.node?.id,
-    url: edge.node?.url,
-    altText: edge.node?.altText,
-  })) : [],
+  images: Array.isArray(node.images?.edges)
+    ? node.images.edges.map(({ node: imageNode }) => ({
+        id: imageNode?.id,
+        url: imageNode?.url,
+        thumbnailUrl: imageNode?.thumbnail ?? imageNode?.url,
+        altText: imageNode?.altText,
+      }))
+    : [],
   options: node.options.map(option => ({
     id: option.id,
     name: option.name,
@@ -40,7 +43,14 @@ export const formatProducts = (edges) => {
     handle: node.handle,
     description: node.description,
     productType: node.productType,
-    images: Array.isArray(node.images?.edges) ? node.images.edges.map(edge => edge.node) : [],
+    images: Array.isArray(node.images?.edges)
+      ? node.images.edges.map(({ node: imageNode }) => ({
+          id: imageNode?.id,
+          url: imageNode?.url,
+          thumbnailUrl: imageNode?.thumbnail ?? imageNode?.url,
+          altText: imageNode?.altText,
+        }))
+      : [],
     options: Array.isArray(node.options) ? node.options.map(option => ({ name: option.name, values: option.values })) : [],
     variants: Array.isArray(node.variants?.edges) ? node.variants.edges.map(({ node: variantNode }) => ({
       id: variantNode?.id,

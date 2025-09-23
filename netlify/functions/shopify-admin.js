@@ -264,8 +264,8 @@ async function createCustomerAddress(customerId, address) {
 
 async function updateCustomerAddress(customerId, addressId, address) {
   const mutation = `
-    mutation customerAddressUpdate($customerId: ID!, $id: ID!, $address: MailingAddressInput!) {
-      customerAddressUpdate(customerId: $customerId, id: $id, address: $address) {
+    mutation customerAddressUpdate($customerId: ID!, $addressId: ID!, $address: MailingAddressInput!) {
+      customerAddressUpdate(customerId: $customerId, addressId: $addressId, address: $address) {
         address {
           id
           firstName
@@ -289,7 +289,7 @@ async function updateCustomerAddress(customerId, addressId, address) {
     }
   `;
 
-  const data = await adminFetch(mutation, { customerId, id: addressId, address });
+  const data = await adminFetch(mutation, { customerId, addressId, address });
   const result = data.customerAddressUpdate;
   if (result?.userErrors?.length) {
     throw new Error(result.userErrors.map(e => e.message).join(', '));
@@ -299,8 +299,8 @@ async function updateCustomerAddress(customerId, addressId, address) {
 
 async function deleteCustomerAddress(customerId, addressId) {
   const mutation = `
-    mutation customerAddressDelete($customerId: ID!, $id: ID!) {
-      customerAddressDelete(customerId: $customerId, id: $id) {
+    mutation customerAddressDelete($customerId: ID!, $addressId: ID!) {
+      customerAddressDelete(customerId: $customerId, addressId: $addressId) {
         deletedAddressId
         userErrors {
           field
@@ -310,7 +310,7 @@ async function deleteCustomerAddress(customerId, addressId) {
     }
   `;
 
-  const data = await adminFetch(mutation, { customerId, id: addressId });
+  const data = await adminFetch(mutation, { customerId, addressId });
   const result = data.customerAddressDelete;
   if (result?.userErrors?.length) {
     throw new Error(result.userErrors.map(e => e.message).join(', '));

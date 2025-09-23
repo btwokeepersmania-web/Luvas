@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from '@/components/ui/alert-dialog.jsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
 import {
   getCustomerByEmail,
   createCustomerAddress,
@@ -66,6 +67,7 @@ const AccountAddresses = () => {
   const [saving, setSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -193,6 +195,15 @@ const AccountAddresses = () => {
     }));
   };
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const matcher = window.matchMedia('(pointer: coarse)');
+    const update = () => setIsTouchDevice(matcher.matches);
+    update();
+    matcher.addEventListener('change', update);
+    return () => matcher.removeEventListener('change', update);
+  }, []);
+
   const handleAddNew = () => {
     resetForm();
     setIsDialogOpen(true);
@@ -221,25 +232,33 @@ const AccountAddresses = () => {
     const postalCode = formData.zip?.trim();
     const countryCode = formData.countryCode || resolveCountryOption(formData.country)?.code;
 
+    const missingZipTitle = tWithFallback(t, 'account.addresses.lookupMissingZip', 'Postal code required');
+    const missingZipDescription = tWithFallback(
+      t,
+      'account.addresses.lookupMissingZipDescription',
+      'Please enter the postal/ZIP code before running a lookup.'
+    );
+    const missingCountryTitle = tWithFallback(t, 'account.addresses.lookupMissingCountry', 'Country required');
+    const missingCountryDescription = tWithFallback(
+      t,
+      'account.addresses.lookupMissingCountryDescription',
+      'Select or type a country so we know which lookup service to use.'
+    );
+    const successTitle = tWithFallback(t, 'account.addresses.lookupSuccess', 'Address suggestions applied');
+    const successDescription = tWithFallback(
+      t,
+      'account.addresses.lookupSuccessDescription',
+      'We filled in any address details we could find. Please confirm they are correct.'
+    );
+    const lookupErrorTitle = tWithFallback(t, 'account.addresses.lookupError', 'Lookup unavailable');
+
     if (!postalCode) {
-      toast({
-        title: t('account.addresses.lookupMissingZip') || 'Postal code required',
-        description:
-          t('account.addresses.lookupMissingZipDescription') ||
-          'Please enter the postal/ZIP code before running a lookup.',
-        variant: 'destructive',
-      });
+      toast({ title: missingZipTitle, description: missingZipDescription, variant: 'destructive' });
       return;
     }
 
     if (!countryCode) {
-      toast({
-        title: t('account.addresses.lookupMissingCountry') || 'Country required',
-        description:
-          t('account.addresses.lookupMissingCountryDescription') ||
-          'Select or type a country so we know which lookup service to use.',
-        variant: 'destructive',
-      });
+      toast({ title: missingCountryTitle, description: missingCountryDescription, variant: 'destructive' });
       return;
     }
 
@@ -261,7 +280,8 @@ const AccountAddresses = () => {
           countryCode: 'BR',
         }));
       } else {
-        response = await fetch(`https://api.zippopotam.us/${countryCode.toLowerCase()}/${encodeURIComponent(postalCode)}`);
+        const sanitized = postalCode.replace(/\s+/g, '');
+        response = await fetch(`https://api.zippopotam.us/${countryCode.toLowerCase()}/${encodeURIComponent(sanitized)}`);
         if (!response.ok) throw new Error('Postal lookup failed');
         const data = await response.json();
         const place = Array.isArray(data.places) && data.places.length ? data.places[0] : null;
@@ -273,19 +293,10 @@ const AccountAddresses = () => {
           countryCode: countryCode.toUpperCase(),
         }));
       }
-      toast({
-        title: t('account.addresses.lookupSuccess') || 'Address suggestions applied',
-        description:
-          t('account.addresses.lookupSuccessDescription') ||
-          'We filled in any address details we could find. Please confirm they are correct.',
-      });
+      toast({ title: successTitle, description: successDescription });
     } catch (error) {
       console.error('Postal lookup failed:', error);
-      toast({
-        title: t('account.addresses.lookupError') || 'Lookup unavailable',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: lookupErrorTitle, description: error.message, variant: 'destructive' });
     } finally {
       setIsLookupLoading(false);
     }
@@ -296,11 +307,33 @@ const AccountAddresses = () => {
       validateAddress(formData);
       setSaving(true);
 
+      const option = resolveCountryOption(formData.country);
+      const payload = {
+        ...formData,
+        country: (option?.code || formData.countryCode || formData.country || '').toUpperCase(),
+      };
+      delete payload.countryCode;
+      if (payload.province) {
+        const trimmedProvince = payload.province.trim();
+        payload.province = trimmedProvince;
+        if (trimmedProvince.length <= 3) payload.provinceCode = trimmedProvince.toUpperCase();
+        else delete payload.provinceCode;
+      } else {
+        delete payload.provinceCode;
+      }
+      if (payload.phone) {
+        payload.phone = payload.phone.trim();
+        if (payload.phone === '') payload.phone = null;
+      }
+      if (payload.address2) {
+        payload.address2 = payload.address2.trim() || null;
+      }
+
       if (editingAddress) {
-        await updateCustomerAddress(customer.id, editingAddress.id, formData);
+        await updateCustomerAddress(customer.id, editingAddress.id, payload);
         toast({ title: t('account.addresses.updated'), description: t('account.addresses.updatedDescription') });
       } else {
-        await createCustomerAddress(customer.id, formData);
+        await createCustomerAddress(customer.id, payload);
         toast({ title: t('account.addresses.created'), description: t('account.addresses.createdDescription') });
       }
 
@@ -474,20 +507,47 @@ const AccountAddresses = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="country">{t('account.addresses.country')} *</Label>
-                    <Input
-                      id="country"
-                      value={formData.country}
-                      onChange={(event) => handleCountryChange(event.target.value)}
-                      list="account-country-options"
-                      placeholder={t('account.addresses.selectCountry')}
-                      className="bg-gray-800 border-gray-700"
-                      required
-                    />
-                    <datalist id="account-country-options">
-                      {countryOptions.map((option) => (
-                        <option key={option.code} value={option.name} />
-                      ))}
-                    </datalist>
+                    {isTouchDevice ? (
+                      <Select
+                        value={formData.countryCode || ''}
+                        onValueChange={(code) => {
+                          const option = countryMapByCode.get(code);
+                          setFormData((prev) => ({
+                            ...prev,
+                            country: option?.name || code,
+                            countryCode: code,
+                          }));
+                        }}
+                      >
+                        <SelectTrigger className="bg-gray-800 border-gray-700 text-left">
+                          <SelectValue placeholder={t('account.addresses.selectCountry')} />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-64 bg-gray-900 text-white">
+                          {countryOptions.map((option) => (
+                            <SelectItem key={option.code} value={option.code}>
+                              {option.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <>
+                        <Input
+                          id="country"
+                          value={formData.country}
+                          onChange={(event) => handleCountryChange(event.target.value)}
+                          list="account-country-options"
+                          placeholder={t('account.addresses.selectCountry')}
+                          className="bg-gray-800 border-gray-700"
+                          required
+                        />
+                        <datalist id="account-country-options">
+                          {countryOptions.map((option) => (
+                            <option key={option.code} value={option.name} />
+                          ))}
+                        </datalist>
+                      </>
+                    )}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
