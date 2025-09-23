@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useShopify } from './ShopifyContext.jsx';
 import { useCart } from './CartContext.jsx';
 import { toast } from '@/components/ui/use-toast.js';
 import { useTranslation } from 'react-i18next';
 import { customerAccountFetch, isAuthenticated as isCustomerAuthAuthenticated } from '@/lib/shopify/customerAuth.js';
-import { getCustomerByEmail, isAdminApiConfigured } from '@/lib/shopify/adminApi.js';
+import { getCustomerByEmail, isAdminApiConfigured, saveCustomerCart, clearCustomerCart } from '@/lib/shopify/adminApi.js';
 
 const AuthContext = createContext();
 
@@ -21,9 +21,11 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const { customerCreate, customerAccessTokenCreate, customerAccessTokenDelete, getCustomer } = useShopify();
-  const { clearCart, syncRemoteCustomer } = useCart();
+  const { clearCart, cartItems, note, replaceCart } = useCart();
   const { t } = useTranslation();
   const adminApiEnabled = isAdminApiConfigured();
+  const cartHydrated = useRef(false);
+  const cartPersistTimeout = useRef(null);
 
   const normalizeCustomerShape = useCallback((rawCustomer) => {
     if (!rawCustomer) return null;
@@ -92,14 +94,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       setCustomer(normalized);
-      if (adminApiEnabled) {
-        syncRemoteCustomer(normalized);
-      } else {
-        syncRemoteCustomer(null);
-      }
       return normalized;
     },
-    [adminApiEnabled, normalizeCustomerShape, syncRemoteCustomer]
+    [adminApiEnabled, normalizeCustomerShape]
   );
 
   const logout = useCallback(async () => {
@@ -124,7 +121,6 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('customerData');
     setCustomer(null);
     setToken(null);
-    syncRemoteCustomer(null);
     clearCart();
     toast({ title: t('account.logout.success') });
   }, [token, clearCart, t, customerAccessTokenDelete]);
@@ -234,6 +230,54 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   }, [hydrateWithAdminData]);
+
+  useEffect(() => {
+    if (!customer?.id || !adminApiEnabled) {
+      cartHydrated.current = false;
+      return;
+    }
+
+    const savedCart = customer.savedCart;
+    if (!cartHydrated.current) {
+      if (savedCart && Array.isArray(savedCart.items)) {
+        replaceCart(savedCart.items, savedCart.note || '');
+      }
+      cartHydrated.current = true;
+    }
+  }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart]);
+
+  useEffect(() => {
+    if (!customer?.id || !adminApiEnabled || !cartHydrated.current) {
+      return () => {};
+    }
+
+    if (cartPersistTimeout.current) {
+      clearTimeout(cartPersistTimeout.current);
+    }
+
+    const state = { items: cartItems, note };
+
+    cartPersistTimeout.current = setTimeout(async () => {
+      try {
+        if (state.items.length === 0 && (!state.note || state.note.trim() === '')) {
+          await clearCustomerCart(customer.id);
+          setCustomer((prev) => (prev ? { ...prev, savedCart: null } : prev));
+        } else {
+          await saveCustomerCart(customer.id, state);
+          setCustomer((prev) => (prev ? { ...prev, savedCart: state } : prev));
+        }
+      } catch (error) {
+        console.error('Failed to sync cart state:', error);
+      }
+    }, 500);
+
+    return () => {
+      if (cartPersistTimeout.current) {
+        clearTimeout(cartPersistTimeout.current);
+        cartPersistTimeout.current = null;
+      }
+    };
+  }, [customer?.id, adminApiEnabled, cartItems, note]);
 
   useEffect(() => {
     const initializeAuth = async () => {

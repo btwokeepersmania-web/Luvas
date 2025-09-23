@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { useTranslation } from 'react-i18next';
 import isEqual from 'lodash.isequal';
 import { useShopify } from './ShopifyContext';
-import { saveCustomerCart, clearCustomerCart } from '@/lib/shopify/adminApi.js';
 
 const CartContext = createContext();
 
@@ -23,10 +22,6 @@ export const CartProvider = ({ children }) => {
   const [note, setNote] = useState('');
   const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false);
   const [suggestedProducts, setSuggestedProducts] = useState([]);
-  const [remoteCustomer, setRemoteCustomer] = useState(null);
-  const hasHydratedRemoteRef = useRef(false);
-  const skipNextSyncRef = useRef(false);
-  const cartStateRef = useRef({ items: [], note: '' });
 
   useEffect(() => {
     const savedCart = localStorage.getItem('b2goalkeeping-cart');
@@ -49,70 +44,8 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => {
     const cartData = { items: cartItems, note };
-    cartStateRef.current = cartData;
     localStorage.setItem('b2goalkeeping-cart', JSON.stringify(cartData));
   }, [cartItems, note]);
-
-  const persistRemoteCart = useCallback(async (state) => {
-    if (!remoteCustomer?.id) return;
-    try {
-      if (state.items.length === 0 && (!state.note || state.note.trim() === '')) {
-        await clearCustomerCart(remoteCustomer.id);
-        setRemoteCustomer((prev) => (prev ? { ...prev, savedCart: null } : prev));
-      } else {
-        await saveCustomerCart(remoteCustomer.id, state);
-        setRemoteCustomer((prev) => (prev ? { ...prev, savedCart: state } : prev));
-      }
-    } catch (error) {
-      console.error('Failed to persist cart state:', error);
-    }
-  }, [remoteCustomer?.id]);
-
-  useEffect(() => {
-    if (!remoteCustomer?.id) {
-      hasHydratedRemoteRef.current = false;
-      return;
-    }
-
-    if (!hasHydratedRemoteRef.current) {
-      const saved = remoteCustomer.savedCart;
-      if (saved && Array.isArray(saved.items)) {
-        skipNextSyncRef.current = true;
-        setCartItems(saved.items);
-        setNote(saved.note || '');
-      } else {
-        const currentState = cartStateRef.current;
-        if (currentState.items.length > 0 || (currentState.note && currentState.note.trim() !== '')) {
-          persistRemoteCart(currentState);
-        }
-      }
-      hasHydratedRemoteRef.current = true;
-    }
-  }, [remoteCustomer, persistRemoteCart]);
-
-  useEffect(() => {
-    if (!remoteCustomer?.id) return;
-    if (!hasHydratedRemoteRef.current) return;
-    if (skipNextSyncRef.current) {
-      skipNextSyncRef.current = false;
-      return;
-    }
-
-    const state = cartStateRef.current;
-    const handler = setTimeout(() => {
-      persistRemoteCart(state);
-    }, 500);
-
-    return () => clearTimeout(handler);
-  }, [cartItems, note, remoteCustomer, persistRemoteCart]);
-
-  const syncRemoteCustomer = useCallback((customer) => {
-    if (customer?.id) {
-      setRemoteCustomer({ id: customer.id, savedCart: customer.savedCart || null });
-    } else {
-      setRemoteCustomer(null);
-    }
-  }, []);
 
   const isItemInCart = (variantId, customAttributes = []) => {
     return cartItems.some(item => 
@@ -261,6 +194,11 @@ export const CartProvider = ({ children }) => {
     setNote('');
   };
 
+  const replaceCart = (items = [], noteValue = '') => {
+    setCartItems(Array.isArray(items) ? items : []);
+    setNote(noteValue || '');
+  };
+
   const getTotalItems = () => {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
@@ -289,7 +227,7 @@ export const CartProvider = ({ children }) => {
     isSuggestionsModalOpen,
     closeSuggestionsModal,
     suggestedProducts,
-    syncRemoteCustomer,
+    replaceCart,
   };
 
   return (
