@@ -97,6 +97,13 @@ export async function getOrderDetails(orderId) {
 }
 
 /**
+ * Redeem loyalty points into a discount code
+ */
+export async function redeemCustomerPoints(customerId, points) {
+  return callAdmin('redeemCustomerPoints', { customerId, points });
+}
+
+/**
  * Check if Admin API is configured
  */
 export function isAdminApiConfigured() {

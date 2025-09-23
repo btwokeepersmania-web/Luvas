@@ -48,12 +48,30 @@ export const AuthProvider = ({ children }) => {
       return [];
     };
 
+    const normalizeLoyalty = () => {
+      const loyalty = rawCustomer.loyalty || {};
+      const data = rawCustomer.loyaltyData || {};
+      return {
+        totalPoints: loyalty.totalPoints ?? data.totalPoints ?? 0,
+        redeemedPoints: loyalty.redeemedPoints ?? data.redeemedPoints ?? 0,
+        availablePoints: loyalty.availablePoints ?? Math.max(0, (data.totalPoints || 0) - (data.redeemedPoints || 0)),
+        discountValue: loyalty.discountValue ?? 0,
+        threshold: loyalty.threshold ?? 0,
+        thresholdReached: loyalty.thresholdReached ?? false,
+        pennyPerPoint: loyalty.pennyPerPoint ?? null,
+        currency: loyalty.currency ?? null,
+        redemptions: Array.isArray(loyalty.redemptions) ? loyalty.redemptions : (Array.isArray(data.redemptions) ? data.redemptions : []),
+      };
+    };
+
     return {
       ...rawCustomer,
       phone: rawCustomer.phone || rawCustomer.phoneNumber?.phoneNumber || '',
       addresses: normalizeAddresses(),
       orders: normalizeOrders(),
       defaultAddress: rawCustomer.defaultAddress ? { ...rawCustomer.defaultAddress } : null,
+      loyalty: normalizeLoyalty(),
+      savedCart: rawCustomer.savedCart || null,
     };
   }, []);
 

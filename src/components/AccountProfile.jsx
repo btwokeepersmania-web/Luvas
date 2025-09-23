@@ -24,6 +24,7 @@ import { Separator } from '@/components/ui/separator.jsx';
 import { 
   getCustomerByEmail, 
   updateCustomerProfile, 
+  redeemCustomerPoints,
   isAdminApiConfigured 
 } from '@/lib/shopify/adminApi.js';
 import { toast } from '@/components/ui/use-toast.js';
@@ -41,6 +42,14 @@ const AccountProfile = () => {
     phone: '',
   });
   const [errors, setErrors] = useState({});
+  const [redeemPoints, setRedeemPoints] = useState('');
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [lastRedeemResult, setLastRedeemResult] = useState(null);
+
+  const tWithFallback = (key, fallback) => {
+    const translated = t(key);
+    return translated === key ? fallback : translated;
+  };
 
   // Initialize form data when customer data changes
   useEffect(() => {
@@ -53,6 +62,15 @@ const AccountProfile = () => {
       });
     }
   }, [customer]);
+
+  useEffect(() => {
+    if (customer?.loyalty?.availablePoints > 0) {
+      setRedeemPoints(String(customer.loyalty.availablePoints));
+    } else {
+      setRedeemPoints('');
+    }
+    setLastRedeemResult(null);
+  }, [customer?.loyalty?.availablePoints]);
 
   // Handle input changes
   const handleInputChange = (field, value) => {
@@ -189,6 +207,76 @@ const AccountProfile = () => {
     }
   };
 
+  const handleRedeem = async () => {
+    if (!isAdminApiConfigured()) {
+      toast({
+        title: tWithFallback('account.loyalty.unavailableTitle', 'Loyalty unavailable'),
+        description: tWithFallback('account.loyalty.unavailableDescription', 'Please contact support for assistance.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!customer?.id || !customer?.loyalty) return;
+
+    const points = Math.floor(Number(redeemPoints));
+    if (!Number.isFinite(points) || points <= 0) {
+      toast({
+        title: tWithFallback('account.loyalty.invalidPointsTitle', 'Enter a valid number of points'),
+        description: tWithFallback('account.loyalty.invalidPointsDescription', 'Please enter a positive number of points to redeem.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (points > (customer.loyalty.availablePoints || 0)) {
+      toast({
+        title: tWithFallback('account.loyalty.insufficientTitle', 'Not enough points'),
+        description: tWithFallback('account.loyalty.insufficientDescription', 'You do not have enough points to redeem this amount.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if ((customer.loyalty.threshold || 0) > 0 && points < customer.loyalty.threshold) {
+      toast({
+        title: tWithFallback('account.loyalty.thresholdTitle', 'Minimum redemption not reached'),
+        description: tWithFallback(
+          'account.loyalty.thresholdDescription',
+          `You need at least ${customer.loyalty.threshold} points to redeem a reward.`
+        ),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setRedeemLoading(true);
+      const response = await redeemCustomerPoints(customer.id, points);
+      setLastRedeemResult(response);
+      toast({
+        title: tWithFallback('account.loyalty.redeemSuccessTitle', 'Discount code ready!'),
+        description: tWithFallback(
+          'account.loyalty.redeemSuccessDescription',
+          `Use code ${response.code} to enjoy your reward.`
+        ),
+      });
+      setRedeemPoints('');
+      if (fetchCustomerFromAPI) {
+        await fetchCustomerFromAPI();
+      }
+    } catch (error) {
+      console.error('Failed to redeem loyalty points:', error);
+      toast({
+        title: tWithFallback('account.loyalty.redeemErrorTitle', 'Unable to redeem points'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setRedeemLoading(false);
+    }
+  };
+
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -205,6 +293,14 @@ const AccountProfile = () => {
     const lastName = formData.lastName || customer?.lastName || '';
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
+
+  const loyalty = customer?.loyalty;
+  const canRedeem = Boolean(
+    isAdminApiConfigured() &&
+      loyalty &&
+      loyalty.availablePoints > 0 &&
+      (!loyalty.threshold || loyalty.availablePoints >= loyalty.threshold)
+  );
 
   return (
     <motion.div
@@ -446,7 +542,140 @@ const AccountProfile = () => {
               </div>
             </>
           )}
-          
+
+          {loyalty && (
+            <>
+              <Separator className="border-gray-700" />
+              <div className="space-y-6">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <h4 className="font-semibold text-yellow-400">
+                    {tWithFallback('account.loyalty.title', 'Loyalty & Rewards')}
+                  </h4>
+                  <Badge className="bg-purple-500/20 text-purple-200 border-purple-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    {tWithFallback('account.loyalty.active', 'Active Member')}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-gray-800/60 border border-purple-500/20 rounded-lg p-4">
+                    <p className="text-gray-400 text-sm">
+                      {tWithFallback('account.loyalty.total', 'Total Points Earned')}
+                    </p>
+                    <p className="text-2xl font-bold text-purple-300 mt-1">
+                      {loyalty.totalPoints.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-gray-800/60 border border-green-500/20 rounded-lg p-4">
+                    <p className="text-gray-400 text-sm">
+                      {tWithFallback('account.loyalty.available', 'Available Points')}
+                    </p>
+                    <p className="text-2xl font-bold text-green-300 mt-1">
+                      {loyalty.availablePoints.toLocaleString()}
+                    </p>
+                    {loyalty.threshold > 0 && (
+                      <p className="text-xs text-gray-400 mt-2">
+                        {tWithFallback('account.loyalty.thresholdLabel', 'Minimum to redeem:')} {loyalty.threshold.toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <div className="bg-gray-800/60 border border-yellow-500/20 rounded-lg p-4">
+                    <p className="text-gray-400 text-sm">
+                      {tWithFallback('account.loyalty.value', 'Reward Value Available')}
+                    </p>
+                    <p className="text-2xl font-bold text-yellow-300 mt-1">
+                      {loyalty.currency || 'GBP'} {loyalty.discountValue.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 bg-gray-800/40 border border-gray-700 rounded-lg p-4">
+                  <h5 className="text-lg font-semibold text-gray-200">
+                    {tWithFallback('account.loyalty.redeemTitle', 'Redeem Points for a Discount')}
+                  </h5>
+                  <p className="text-sm text-gray-400">
+                    {tWithFallback(
+                      'account.loyalty.redeemDescription',
+                      'Convert your points into an exclusive discount code usable at checkout.'
+                    )}
+                  </p>
+                  <div className="flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="flex-1">
+                      <Label htmlFor="loyalty-points" className="text-gray-300 text-sm">
+                        {tWithFallback('account.loyalty.pointsInput', 'Points to redeem')}
+                      </Label>
+                      <Input
+                        id="loyalty-points"
+                        type="number"
+                        min={loyalty.threshold || 1}
+                        step={1}
+                        value={redeemPoints}
+                        onChange={(event) => setRedeemPoints(event.target.value)}
+                        className="mt-1 bg-gray-900 border-gray-700 text-white"
+                        disabled={!isAdminApiConfigured() || redeemLoading}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleRedeem}
+                      disabled={!canRedeem || redeemLoading}
+                      className="bg-purple-500 hover:bg-purple-600 text-black font-semibold"
+                    >
+                      {redeemLoading ? (
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4 mr-2" />
+                      )}
+                      {tWithFallback('account.loyalty.redeemButton', 'Redeem Points')}
+                    </Button>
+                  </div>
+                  {lastRedeemResult?.code && (
+                    <div className="bg-purple-500/10 border border-purple-500/30 text-purple-200 rounded-md p-3 text-sm">
+                      {tWithFallback('account.loyalty.lastCode', 'Latest code:')} <span className="font-semibold">{lastRedeemResult.code}</span>
+                    </div>
+                  )}
+                </div>
+
+                {loyalty.redemptions.length > 0 && (
+                  <div className="space-y-3">
+                    <h5 className="text-lg font-semibold text-gray-200">
+                      {tWithFallback('account.loyalty.historyTitle', 'Recent Redemptions')}
+                    </h5>
+                    <div className="space-y-2">
+                      {loyalty.redemptions
+                        .slice()
+                        .reverse()
+                        .slice(0, 5)
+                        .map((entry, index) => (
+                          <div
+                            key={`${entry.code}-${index}`}
+                            className="flex flex-col md:flex-row md:items-center justify-between gap-2 bg-gray-800/60 border border-gray-700 rounded-lg p-3 text-sm"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-purple-500/20 text-purple-200 border-purple-500/30">
+                                {entry.code}
+                              </Badge>
+                              <span className="text-gray-300">
+                                {entry.points.toLocaleString()} {tWithFallback('account.loyalty.pointsLabel', 'points')}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-gray-400">
+                              <span>
+                                {tWithFallback('account.loyalty.valueLabel', 'Value')}: {entry.currency || loyalty.currency || 'GBP'}{' '}
+                                {Number(entry.value || 0).toFixed(2)}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {new Date(entry.createdAt || Date.now()).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {/* Admin API Status */}
           {!isAdminApiConfigured() && (
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
