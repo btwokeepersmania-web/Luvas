@@ -40,18 +40,42 @@ const LoginPage = () => {
   const shopifyLoginUrl = `https://${import.meta.env.VITE_SHOPIFY_DOMAIN}/account/login?return_url=${returnUrl}`;
   const shopifyRegisterUrl = `https://${import.meta.env.VITE_SHOPIFY_DOMAIN}/account/register?return_url=${returnUrl}`;
 
+  const popupFeatures = 'width=520,height=640,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes';
+
+  const openPopupOrRedirect = (url) => {
+    const popup = window.open(url, 'shopify-auth', popupFeatures);
+    if (!popup) {
+      window.location.href = url;
+      return;
+    }
+    try {
+      popup.focus();
+    } catch (err) {
+      console.warn('Unable to focus Shopify window:', err);
+    }
+  };
+
   const handleSecureLogin = async () => {
     try {
-      // persist desired return path across external redirect
       sessionStorage.setItem('auth_return_to', from || '/account');
       setLoading(true);
       await initiateLogin();
     } catch (error) {
       console.error('Secure login initiation failed:', error);
-      // Fallback to Shopify hosted login (include return_url to callback)
       sessionStorage.setItem('auth_return_to', from || '/account');
-      window.location.href = shopifyLoginUrl;
+      openPopupOrRedirect(shopifyLoginUrl);
     }
+  };
+
+  const handleHostedLogin = () => {
+    sessionStorage.setItem('auth_return_to', from || '/account');
+    openPopupOrRedirect(shopifyLoginUrl);
+  };
+
+  const handleHostedRegister = (event) => {
+    if (event && event.preventDefault) event.preventDefault();
+    sessionStorage.setItem('auth_return_to', from || '/account');
+    openPopupOrRedirect(shopifyRegisterUrl);
   };
 
   useEffect(() => {
@@ -154,20 +178,22 @@ const LoginPage = () => {
                       </div>
                     </div>
 
-                    <a href={shopifyLoginUrl} target="_self" rel="noopener noreferrer">
-                      <Button className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium text-base py-4">
-                        {t('auth.login.quickLoginButton') || 'Login via Shopify'}
-                        <ExternalLink className="ml-2 h-4 w-4" />
-                      </Button>
-                    </a>
+                    <Button
+                      onClick={handleHostedLogin}
+                      className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium text-base py-4"
+                    >
+                      {t('auth.login.quickLoginButton') || 'Login via Shopify'}
+                      <ExternalLink className="ml-2 h-4 w-4" />
+                    </Button>
                   </>
                 ) : (
-                  <a href={shopifyLoginUrl} target="_self" rel="noopener noreferrer">
-                    <Button className="w-full bg-green-500 hover:bg-green-600 text-black font-bold text-lg py-6">
-                      {t('auth.login.shopLoginButton') || 'Login with Shopify'}
-                      <ExternalLink className="ml-2 h-5 w-5" />
-                    </Button>
-                  </a>
+                  <Button
+                    onClick={handleHostedLogin}
+                    className="w-full bg-green-500 hover:bg-green-600 text-black font-bold text-lg py-6"
+                  >
+                    {t('auth.login.shopLoginButton') || 'Login with Shopify'}
+                    <ExternalLink className="ml-2 h-5 w-5" />
+                  </Button>
                 )}
               </div>
             </TabsContent>
@@ -176,9 +202,13 @@ const LoginPage = () => {
           <div className="text-center text-sm text-gray-400">
             <p className="mt-6">
               {t('auth.login.noAccount') || "Don't have an account?"}{' '}
-              <a href={shopifyRegisterUrl} className="font-medium text-green-400 hover:text-green-300">
+              <button
+                type="button"
+                onClick={handleHostedRegister}
+                className="font-medium text-green-400 hover:text-green-300 underline decoration-dotted"
+              >
                 {t('auth.login.registerNow') || 'Register now'}
-              </a>
+              </button>
             </p>
           </div>
         </motion.div>
