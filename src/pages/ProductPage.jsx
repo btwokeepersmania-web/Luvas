@@ -18,7 +18,7 @@ const ProductPage = () => {
   const { handle } = useParams();
   const { fetchProductByHandle } = useShopify();
   const { addToCart } = useCart();
-  const { formatPrice } = useLocalization();
+  const { formatPrice, country, language } = useLocalization();
   const { t } = useTranslation();
 
   const [product, setProduct] = useState(null);
@@ -31,6 +31,9 @@ const ProductPage = () => {
   const [number, setNumber] = useState('');
 
   useEffect(() => {
+    if (!country || !language) {
+      return;
+    }
     const getProductData = async () => {
       setLoading(true);
       setError(null);
@@ -71,7 +74,7 @@ const ProductPage = () => {
     };
 
     getProductData();
-  }, [handle, fetchProductByHandle, t]);
+  }, [handle, fetchProductByHandle, t, country, language]);
 
   const images = product?.images ?? [];
   const options = product?.options ?? [];
