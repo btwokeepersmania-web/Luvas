@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { useTranslation } from 'react-i18next';
 import isEqual from 'lodash.isequal';
 import { useShopify } from './ShopifyContext';
+import { saveCustomerCart, clearCustomerCart } from '@/lib/shopify/adminApi.js';
 
 const CartContext = createContext();
 
@@ -22,6 +23,10 @@ export const CartProvider = ({ children }) => {
   const [note, setNote] = useState('');
   const [isSuggestionsModalOpen, setIsSuggestionsModalOpen] = useState(false);
   const [suggestedProducts, setSuggestedProducts] = useState([]);
+  const [remoteCustomer, setRemoteCustomer] = useState(null);
+  const hasHydratedRemoteRef = useRef(false);
+  const skipNextSyncRef = useRef(false);
+  const cartStateRef = useRef({ items: [], note: '' });
 
   useEffect(() => {
     const savedCart = localStorage.getItem('b2goalkeeping-cart');
@@ -44,8 +49,64 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => {
     const cartData = { items: cartItems, note };
+    cartStateRef.current = cartData;
     localStorage.setItem('b2goalkeeping-cart', JSON.stringify(cartData));
   }, [cartItems, note]);
+
+  useEffect(() => {
+    if (!remoteCustomer?.id) {
+      hasHydratedRemoteRef.current = false;
+      return;
+    }
+
+    if (!hasHydratedRemoteRef.current) {
+      if (remoteCustomer.savedCart && Array.isArray(remoteCustomer.savedCart.items)) {
+        skipNextSyncRef.current = true;
+        setCartItems(remoteCustomer.savedCart.items);
+        setNote(remoteCustomer.savedCart.note || '');
+      } else {
+        const currentState = cartStateRef.current;
+        if (currentState.items.length > 0 || (currentState.note && currentState.note.trim() !== '')) {
+          saveCustomerCart(remoteCustomer.id, currentState).catch((error) => {
+            console.error('Failed to persist initial cart state:', error);
+          });
+        }
+      }
+      hasHydratedRemoteRef.current = true;
+    }
+  }, [remoteCustomer]);
+
+  useEffect(() => {
+    if (!remoteCustomer?.id) return;
+    if (!hasHydratedRemoteRef.current) return;
+    if (skipNextSyncRef.current) {
+      skipNextSyncRef.current = false;
+      return;
+    }
+
+    const state = cartStateRef.current;
+    const handler = setTimeout(() => {
+      if (state.items.length === 0 && (!state.note || state.note.trim() === '')) {
+        clearCustomerCart(remoteCustomer.id).catch((error) => {
+          console.error('Failed to clear remote cart state:', error);
+        });
+      } else {
+        saveCustomerCart(remoteCustomer.id, state).catch((error) => {
+          console.error('Failed to save remote cart state:', error);
+        });
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [cartItems, note, remoteCustomer]);
+
+  const syncRemoteCustomer = useCallback((customer) => {
+    if (customer?.id) {
+      setRemoteCustomer({ id: customer.id, savedCart: customer.savedCart || null });
+    } else {
+      setRemoteCustomer(null);
+    }
+  }, []);
 
   const isItemInCart = (variantId, customAttributes = []) => {
     return cartItems.some(item => 
@@ -222,6 +283,7 @@ export const CartProvider = ({ children }) => {
     isSuggestionsModalOpen,
     closeSuggestionsModal,
     suggestedProducts,
+    syncRemoteCustomer,
   };
 
   return (

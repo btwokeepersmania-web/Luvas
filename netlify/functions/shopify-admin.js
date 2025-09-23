@@ -153,6 +153,12 @@ const CUSTOMER_FRAGMENT = `
   createdAt
   updatedAt
   tags
+  activeCartId: metafield(namespace: "b2keeper", key: "active_cart_id") {
+    value
+  }
+  savedCart: metafield(namespace: "b2keeper", key: "saved_cart") {
+    value
+  }
   defaultAddress {
     id
     firstName
@@ -417,6 +423,60 @@ async function setDefaultAddress(customerId, addressId) {
   return normalizeAddressForClient(result?.customer?.defaultAddress);
 }
 
+async function saveCustomerCartState(customerId, cartState) {
+  if (!cartState) {
+    return clearCustomerCartState(customerId);
+  }
+
+  const mutation = `
+    mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) {
+        metafields { id value }
+        userErrors { field message }
+      }
+    }
+  `;
+
+  const input = {
+    ownerId: customerId,
+    namespace: 'b2keeper',
+    key: 'saved_cart',
+    type: 'json',
+    value: JSON.stringify(cartState),
+  };
+
+  const data = await adminFetch(mutation, { metafields: [input] });
+  const result = data?.metafieldsSet;
+  if (result?.userErrors?.length) {
+    throw new Error(result.userErrors.map((err) => err.message).join(', '));
+  }
+  return true;
+}
+
+async function clearCustomerCartState(customerId) {
+  const mutation = `
+    mutation metafieldDelete($input: MetafieldDeleteInput!) {
+      metafieldDelete(input: $input) {
+        deletedId
+        userErrors { field message }
+      }
+    }
+  `;
+
+  const input = {
+    ownerId: customerId,
+    namespace: 'b2keeper',
+    key: 'saved_cart',
+  };
+
+  const data = await adminFetch(mutation, { input });
+  const result = data?.metafieldDelete;
+  if (result?.userErrors?.length) {
+    throw new Error(result.userErrors.map((err) => err.message).join(', '));
+  }
+  return true;
+}
+
 async function getOrderDetails(orderId) {
   const query = `
     query getOrder($id: ID!) {
@@ -544,9 +604,19 @@ function normalizeCustomer(customer) {
   const addresses = Array.isArray(customer.addresses)
     ? customer.addresses
     : customer.addresses?.edges?.map(edge => edge.node) || [];
+  let savedCart = null;
+  if (customer.savedCart?.value) {
+    try {
+      savedCart = JSON.parse(customer.savedCart.value);
+    } catch (err) {
+      console.warn('Failed to parse saved cart metafield:', err?.message || err);
+    }
+  }
   return {
     ...customer,
     addresses,
+    savedCart,
+    activeCartId: customer.activeCartId?.value || null,
   };
 }
 
@@ -639,6 +709,22 @@ export const handler = async (event) => {
           throw new Error('customerId and addressId are required');
         }
         result = await setDefaultAddress(customerId, addressId);
+        break;
+      }
+      case 'saveCustomerCart': {
+        const { customerId, cartState } = payload;
+        if (!customerId) {
+          throw new Error('customerId is required');
+        }
+        result = await saveCustomerCartState(customerId, cartState);
+        break;
+      }
+      case 'clearCustomerCart': {
+        const { customerId } = payload;
+        if (!customerId) {
+          throw new Error('customerId is required');
+        }
+        result = await clearCustomerCartState(customerId);
         break;
       }
       case 'getOrderDetails': {

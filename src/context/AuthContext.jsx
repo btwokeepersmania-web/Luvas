@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const { customerCreate, customerAccessTokenCreate, customerAccessTokenDelete, getCustomer } = useShopify();
-  const { clearCart } = useCart();
+  const { clearCart, syncRemoteCustomer } = useCart();
   const { t } = useTranslation();
   const adminApiEnabled = isAdminApiConfigured();
 
@@ -74,9 +74,14 @@ export const AuthProvider = ({ children }) => {
       }
 
       setCustomer(normalized);
+      if (adminApiEnabled) {
+        syncRemoteCustomer(normalized);
+      } else {
+        syncRemoteCustomer(null);
+      }
       return normalized;
     },
-    [adminApiEnabled, normalizeCustomerShape]
+    [adminApiEnabled, normalizeCustomerShape, syncRemoteCustomer]
   );
 
   const logout = useCallback(async () => {
@@ -101,6 +106,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('customerData');
     setCustomer(null);
     setToken(null);
+    syncRemoteCustomer(null);
     clearCart();
     toast({ title: t('account.logout.success') });
   }, [token, clearCart, t, customerAccessTokenDelete]);
@@ -320,4 +326,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-

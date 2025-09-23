@@ -76,6 +76,20 @@ export async function setDefaultAddress(customerId, addressId) {
 }
 
 /**
+ * Persist cart state for a customer (used to share carts across devices)
+ */
+export async function saveCustomerCart(customerId, cartState) {
+  return callAdmin('saveCustomerCart', { customerId, cartState });
+}
+
+/**
+ * Clear persisted cart state for a customer
+ */
+export async function clearCustomerCart(customerId) {
+  return callAdmin('clearCustomerCart', { customerId });
+}
+
+/**
  * Get real-time order details with tracking
  */
 export async function getOrderDetails(orderId) {
