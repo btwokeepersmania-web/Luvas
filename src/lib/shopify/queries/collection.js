@@ -61,12 +61,13 @@ export const fetchCollectionProducts = async (fetcher, collectionId) => {
               productType
               images(first: 5) { edges { node { url altText } } }
               options { name values }
-              variants(first: 10) {
+              variants(first: 250) {
                 edges {
                   node {
                     id
                     title
                     availableForSale
+                    quantityAvailable
                     price { amount currencyCode }
                     compareAtPrice { amount currencyCode }
                     image { id url altText }
