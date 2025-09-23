@@ -30,7 +30,19 @@ export const fetchProducts = async (fetcher) => {
               }
             }
             options { name values }
-            variants(first: 20) { edges { node { id title availableForSale price { amount currencyCode } compareAtPrice { amount currencyCode } } } }
+            variants(first: 250) {
+              edges {
+                node {
+                  id
+                  title
+                  availableForSale
+                  quantityAvailable
+                  price { amount currencyCode }
+                  compareAtPrice { amount currencyCode }
+                  image { id url altText }
+                }
+              }
+            }
           }
         }
       }

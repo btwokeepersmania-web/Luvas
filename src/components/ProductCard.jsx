@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -26,9 +26,23 @@ const ProductCard = ({ product }) => {
     return () => {};
   }, [productImages.length]);
 
+  const toPositiveInt = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 0) return null;
+    return Math.floor(numeric);
+  };
+
+  const hasSellableStock = useCallback((variant) => {
+    if (!variant) return false;
+    if (variant.availableForSale !== false) return true;
+    const qty = toPositiveInt(variant.quantityAvailable);
+    return qty === null || qty > 0;
+  }, []);
+
   const defaultVariant = useMemo(() => {
     if (Array.isArray(product?.variants) && product.variants.length > 0) {
-      return product.variants.find((variant) => variant.availableForSale) || product.variants[0];
+      const sellable = product.variants.find((variant) => hasSellableStock(variant));
+      return sellable || product.variants[0];
     }
 
     if (product?.variantId) {
@@ -48,13 +62,7 @@ const ProductCard = ({ product }) => {
     }
 
     return null;
-  }, [product]);
-
-  const toPositiveInt = (value) => {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric) || numeric < 0) return null;
-    return Math.floor(numeric);
-  };
+  }, [product, hasSellableStock]);
 
   const variantId = defaultVariant?.id;
   const cartItem = variantId ? findCartItem(variantId, []) : null;

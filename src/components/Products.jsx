@@ -50,9 +50,17 @@ const Products = () => {
     return Math.floor(numeric);
   };
 
+  const hasSellableStock = (variant) => {
+    if (!variant) return false;
+    if (variant.availableForSale !== false) return true;
+    const qty = toPositiveInt(variant.quantityAvailable);
+    return qty === null || qty > 0;
+  };
+
   const selectDefaultVariant = (product) => {
     if (Array.isArray(product?.variants) && product.variants.length > 0) {
-      return product.variants.find((variant) => variant.availableForSale) || product.variants[0];
+      const sellable = product.variants.find((variant) => hasSellableStock(variant));
+      return sellable || product.variants[0];
     }
 
     if (product?.variantId) {
@@ -62,6 +70,7 @@ const Products = () => {
         price: product.price,
         currency: product.currency,
         compareAtPrice: product.compareAtPrice,
+        quantityAvailable: product.quantityAvailable ?? null,
       };
     }
 

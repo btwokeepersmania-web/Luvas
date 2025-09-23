@@ -69,9 +69,12 @@ export const formatProducts = (edges) => {
       image: variantNode?.image ? { id: variantNode.image.id, url: variantNode.image.url, altText: variantNode.image.altText } : null,
       selectedOptions: Array.isArray(variantNode?.selectedOptions) ? variantNode.selectedOptions.map(opt => ({ name: opt.name, value: opt.value })) : [],
     })) : [],
-    price: node.variants?.edges?.[0]?.node?.price?.amount ?? '0',
-    compareAtPrice: node.variants?.edges?.[0]?.node?.compareAtPrice?.amount ?? null,
-    currency: node.variants?.edges?.[0]?.node?.price?.currencyCode || 'BRL',
+    price: (() => {
+      const variantFromEdges = node.variants?.edges?.[0]?.node;
+      return (variantFromEdges?.price?.amount ?? node.priceRange?.minVariantPrice?.amount ?? '0');
+    })(),
+    compareAtPrice: node.variants?.edges?.[0]?.node?.compareAtPrice?.amount ?? node.priceRange?.maxVariantPrice?.amount ?? null,
+    currency: node.variants?.edges?.[0]?.node?.price?.currencyCode || node.priceRange?.minVariantPrice?.currencyCode || 'BRL',
     variantId: node.variants?.edges?.[0]?.node?.id ?? null,
   }));
 };
