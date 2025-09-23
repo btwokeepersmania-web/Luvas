@@ -174,26 +174,6 @@ const ProductPage = () => {
     return variantMap.get(key) || null;
   }, [variantMap, buildVariantKey, selectedOptions]);
 
-  useEffect(() => {
-    if (cartItem) return;
-    if (maxQuantity !== null) {
-      if (maxQuantity > 0 && quantity > maxQuantity) {
-        setQuantity(maxQuantity);
-      }
-      if (maxQuantity === 0 && quantity !== 1) {
-        setQuantity(1);
-      }
-    } else if (quantity < 1) {
-      setQuantity(1);
-    }
-  }, [cartItem, maxQuantity, quantity]);
-
-  useEffect(() => {
-    if (cartItem) {
-      setQuantity(cartItem.quantity || 1);
-    }
-  }, [cartItem]);
-
   const imageIndexMap = useMemo(() => {
     const map = new Map();
     images.forEach((image, index) => {
@@ -289,32 +269,71 @@ const ProductPage = () => {
     return findCartItem(selectedVariant.id, currentCustomAttributes);
   }, [selectedVariant, currentCustomAttributes, findCartItem]);
 
-  const cartItemQuantity = cartItem?.quantity ?? 0;
-  const normalizedSelectedVariantId = selectedVariant ? String(selectedVariant.id) : null;
+  const stockMetrics = useMemo(() => {
+    const cartQuantity = cartItem?.quantity ?? 0;
+    const normalizedId = selectedVariant ? String(selectedVariant.id) : null;
+    const totalVariantInCart = normalizedId
+      ? cartItems.reduce((total, item) => (
+          String(item.variantId) === normalizedId ? total + item.quantity : total
+        ), 0)
+      : 0;
+    const variantQuantity = toPositiveInt(selectedVariant?.quantityAvailable);
+    const otherVariantQuantity = Math.max(0, totalVariantInCart - cartQuantity);
+    const maxQuantity = variantQuantity !== null
+      ? Math.max(0, variantQuantity - otherVariantQuantity)
+      : null;
+    const overallVariantRemaining = variantQuantity !== null
+      ? Math.max(0, variantQuantity - totalVariantInCart)
+      : null;
+    const stockAllows = maxQuantity === null || maxQuantity > 0 || Boolean(cartItem);
+    const variantAvailable = Boolean(selectedVariant) && (selectedVariant?.availableForSale !== false || stockAllows);
+    const displayQuantity = cartItem ? cartQuantity : quantity;
+    const increaseDisabled = maxQuantity !== null && displayQuantity >= maxQuantity;
+    const decreaseDisabled = cartItem ? cartQuantity <= 0 : quantity <= 1;
+    const addButtonDisabled = !variantAvailable;
 
-  const totalVariantInCart = useMemo(() => {
-    if (!normalizedSelectedVariantId) return 0;
-    return cartItems.reduce((total, item) => (
-      String(item.variantId) === normalizedSelectedVariantId ? total + item.quantity : total
-    ), 0);
-  }, [cartItems, normalizedSelectedVariantId]);
+    return {
+      cartQuantity,
+      maxQuantity,
+      overallVariantRemaining,
+      variantAvailable,
+      displayQuantity,
+      increaseDisabled,
+      decreaseDisabled,
+      addButtonDisabled,
+    };
+  }, [cartItem, cartItems, quantity, selectedVariant]);
 
-  const variantQuantityAvailable = toPositiveInt(selectedVariant?.quantityAvailable);
-  const otherVariantQuantity = Math.max(0, totalVariantInCart - cartItemQuantity);
-  const effectiveMaxQuantity = variantQuantityAvailable !== null
-    ? Math.max(0, variantQuantityAvailable - otherVariantQuantity)
-    : null;
-  const overallVariantRemaining = variantQuantityAvailable !== null
-    ? Math.max(0, variantQuantityAvailable - totalVariantInCart)
-    : null;
-  const maxQuantity = effectiveMaxQuantity;
-  const stockAllows = maxQuantity === null || maxQuantity > 0 || Boolean(cartItem);
-  const variantAvailable = Boolean(selectedVariant) && (selectedVariant.availableForSale !== false || stockAllows);
+  const {
+    cartQuantity,
+    maxQuantity,
+    overallVariantRemaining,
+    variantAvailable,
+    displayQuantity,
+    increaseDisabled,
+    decreaseDisabled,
+    addButtonDisabled,
+  } = stockMetrics;
 
-  const displayQuantity = cartItem ? cartItem.quantity : quantity;
-  const increaseDisabled = maxQuantity !== null && displayQuantity >= maxQuantity;
-  const decreaseDisabled = cartItem ? cartItem.quantity <= 0 : quantity <= 1;
-  const addButtonDisabled = !variantAvailable;
+  useEffect(() => {
+    if (cartItem) return;
+    if (maxQuantity !== null) {
+      if (maxQuantity > 0 && quantity > maxQuantity) {
+        setQuantity(maxQuantity);
+      }
+      if (maxQuantity === 0 && quantity !== 1) {
+        setQuantity(1);
+      }
+    } else if (quantity < 1) {
+      setQuantity(1);
+    }
+  }, [cartItem, maxQuantity, quantity]);
+
+  useEffect(() => {
+    if (cartItem) {
+      setQuantity(cartQuantity || 1);
+    }
+  }, [cartItem, cartQuantity]);
 
   const primaryPrice = selectedVariant?.price ?? product?.price;
   const primaryCurrency = selectedVariant?.currency ?? product?.currency;
@@ -330,7 +349,7 @@ const ProductPage = () => {
     if (!selectedVariant) return;
 
     if (cartItem) {
-      updateQuantity(selectedVariant.id, cartItem.quantity + 1, currentCustomAttributes);
+      updateQuantity(selectedVariant.id, cartQuantity + 1, currentCustomAttributes);
       return;
     }
 
@@ -343,18 +362,18 @@ const ProductPage = () => {
       }
       return prev + 1;
     });
-  }, [selectedVariant, cartItem, updateQuantity, currentCustomAttributes, maxQuantity]);
+  }, [selectedVariant, cartItem, cartQuantity, updateQuantity, currentCustomAttributes, maxQuantity]);
 
   const decrementQuantity = useCallback(() => {
     if (!selectedVariant) return;
 
     if (cartItem) {
-      updateQuantity(selectedVariant.id, cartItem.quantity - 1, currentCustomAttributes);
+      updateQuantity(selectedVariant.id, cartQuantity - 1, currentCustomAttributes);
       return;
     }
 
     setQuantity((prev) => Math.max(1, prev - 1));
-  }, [selectedVariant, cartItem, updateQuantity, currentCustomAttributes]);
+  }, [selectedVariant, cartItem, cartQuantity, updateQuantity, currentCustomAttributes]);
 
   const handleAddToCart = useCallback(() => {
     if (!selectedVariant || !variantAvailable) return;

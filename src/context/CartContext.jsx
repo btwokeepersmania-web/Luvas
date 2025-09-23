@@ -162,8 +162,7 @@ export const CartProvider = ({ children }) => {
     }
 
     const maxQuantityFromVariant = parseQuantityAvailable(resolvedVariant?.quantityAvailable);
-    const isOutOfStock =
-      resolvedVariant?.availableForSale === false || (typeof maxQuantityFromVariant === 'number' && maxQuantityFromVariant <= 0);
+    const isOutOfStock = typeof maxQuantityFromVariant === 'number' && maxQuantityFromVariant <= 0;
 
     if (isOutOfStock) {
       toast({
