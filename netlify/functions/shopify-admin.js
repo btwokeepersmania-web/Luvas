@@ -12,6 +12,7 @@ const LOYALTY_POINTS_PER_POUND = Number.parseFloat(process.env.VITE_LOYALTY_POIN
 const LOYALTY_PENNY_PER_POINT = Number.parseFloat(process.env.VITE_LOYALTY_PENNY_PER_POINT || process.env.LOYALTY_PENNY_PER_POINT || '10');
 const LOYALTY_THRESHOLD_POINTS = Number.parseInt(process.env.VITE_LOYALTY_THRESHOLD_POINTS || process.env.LOYALTY_THRESHOLD_POINTS || '0', 10);
 const LOYALTY_CURRENCY = process.env.VITE_LOYALTY_CURRENCY || process.env.LOYALTY_CURRENCY || 'GBP';
+const LOYALTY_MAX_DISCOUNT_PERCENT = Number.parseFloat(process.env.VITE_LOYALTY_MAX_DISCOUNT_PERCENT || process.env.LOYALTY_MAX_DISCOUNT_PERCENT || '15');
 
 const isConfigured = Boolean(SHOP_DOMAIN && ADMIN_TOKEN);
 
@@ -205,6 +206,18 @@ const calculateLoyaltySummary = (loyaltyData) => {
   const discountValue = Math.max(0, Number.parseFloat(((availablePoints * LOYALTY_PENNY_PER_POINT) / 100).toFixed(2)));
   const thresholdReached = availablePoints >= Math.max(0, LOYALTY_THRESHOLD_POINTS || 0);
 
+  const maxPercent = Number.isFinite(LOYALTY_MAX_DISCOUNT_PERCENT)
+    ? Math.max(0, Math.min(100, LOYALTY_MAX_DISCOUNT_PERCENT))
+    : 0;
+  let maxRedeemablePoints = availablePoints;
+  if (availablePoints > 0 && maxPercent > 0 && maxPercent < 100) {
+    maxRedeemablePoints = Math.max(1, Math.floor((availablePoints * maxPercent) / 100));
+    maxRedeemablePoints = Math.min(maxRedeemablePoints, availablePoints);
+  }
+  if (availablePoints === 0) {
+    maxRedeemablePoints = 0;
+  }
+
   return {
     totalPoints: base.totalPoints,
     redeemedPoints: base.redeemedPoints,
@@ -215,6 +228,8 @@ const calculateLoyaltySummary = (loyaltyData) => {
     currency: LOYALTY_CURRENCY,
     redemptions: Array.isArray(base.redemptions) ? base.redemptions : [],
     thresholdReached,
+    maxRedeemablePoints,
+    maxDiscountPercent: maxPercent,
   };
 };
 
@@ -788,6 +803,18 @@ async function redeemCustomerPoints(customerId, pointsRequested) {
 
   if (pointsToRedeem > summary.availablePoints) {
     throw new Error('Insufficient loyalty points.');
+  }
+
+  const maxRedeemablePoints = summary.maxRedeemablePoints ?? summary.availablePoints;
+  if (maxRedeemablePoints <= 0) {
+    throw new Error('No loyalty points can be redeemed at this time.');
+  }
+
+  if (pointsToRedeem > maxRedeemablePoints) {
+    const percentMessage = Number.isFinite(summary.maxDiscountPercent) && summary.maxDiscountPercent > 0
+      ? `${summary.maxDiscountPercent}%`
+      : '15%';
+    throw new Error(`You can redeem at most ${maxRedeemablePoints} points (${percentMessage}) per order.`);
   }
 
   const discountValue = Number.parseFloat(((pointsToRedeem * LOYALTY_PENNY_PER_POINT) / 100).toFixed(2));

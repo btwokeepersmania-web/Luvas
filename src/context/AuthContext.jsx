@@ -53,16 +53,34 @@ export const AuthProvider = ({ children }) => {
     const normalizeLoyalty = () => {
       const loyalty = rawCustomer.loyalty || {};
       const data = rawCustomer.loyaltyData || {};
+      const maxDiscountPercent = loyalty.maxDiscountPercent ?? data.maxDiscountPercent ?? Number.parseFloat(import.meta.env.VITE_LOYALTY_MAX_DISCOUNT_PERCENT || '15');
+      const availablePoints = loyalty.availablePoints ?? Math.max(0, (data.totalPoints || 0) - (data.redeemedPoints || 0));
+      let maxRedeemablePoints = loyalty.maxRedeemablePoints ?? data.maxRedeemablePoints;
+      if (!Number.isFinite(maxRedeemablePoints)) {
+        const cappedPercent = Math.max(0, Math.min(100, Number.isFinite(maxDiscountPercent) ? maxDiscountPercent : 15));
+        maxRedeemablePoints = cappedPercent > 0 ? Math.floor((availablePoints * cappedPercent) / 100) : availablePoints;
+      }
+      if (availablePoints > 0 && (!Number.isFinite(maxRedeemablePoints) || maxRedeemablePoints <= 0)) {
+        const cappedPercent = Math.max(0, Math.min(100, Number.isFinite(maxDiscountPercent) ? maxDiscountPercent : 15));
+        maxRedeemablePoints = cappedPercent > 0 ? Math.floor((availablePoints * cappedPercent) / 100) : availablePoints;
+      }
+      if (availablePoints > 0) {
+        maxRedeemablePoints = Math.max(1, Math.min(availablePoints, Number.isFinite(maxRedeemablePoints) ? maxRedeemablePoints : availablePoints));
+      } else {
+        maxRedeemablePoints = 0;
+      }
       return {
         totalPoints: loyalty.totalPoints ?? data.totalPoints ?? 0,
         redeemedPoints: loyalty.redeemedPoints ?? data.redeemedPoints ?? 0,
-        availablePoints: loyalty.availablePoints ?? Math.max(0, (data.totalPoints || 0) - (data.redeemedPoints || 0)),
+        availablePoints,
         discountValue: loyalty.discountValue ?? 0,
         threshold: loyalty.threshold ?? 0,
         thresholdReached: loyalty.thresholdReached ?? false,
         pennyPerPoint: loyalty.pennyPerPoint ?? null,
         currency: loyalty.currency ?? null,
         redemptions: Array.isArray(loyalty.redemptions) ? loyalty.redemptions : (Array.isArray(data.redemptions) ? data.redemptions : []),
+        maxRedeemablePoints,
+        maxDiscountPercent,
       };
     };
 

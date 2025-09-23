@@ -46,9 +46,8 @@ const AccountProfile = () => {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [lastRedeemResult, setLastRedeemResult] = useState(null);
 
-  const tWithFallback = (key, fallback) => {
-    const translated = t(key);
-    return translated === key ? fallback : translated;
+  const tWithFallback = (key, fallback, options = {}) => {
+    return t(key, { defaultValue: fallback, ...options });
   };
 
   // Initialize form data when customer data changes
@@ -65,12 +64,19 @@ const AccountProfile = () => {
 
   useEffect(() => {
     if (customer?.loyalty?.availablePoints > 0) {
-      setRedeemPoints(String(customer.loyalty.availablePoints));
+      const maxPoints = Math.max(
+        customer.loyalty.maxRedeemablePoints || 0,
+        customer.loyalty.threshold || 0,
+      );
+      const initialPoints = maxPoints > 0
+        ? Math.min(maxPoints, customer.loyalty.availablePoints)
+        : customer.loyalty.availablePoints;
+      setRedeemPoints(String(initialPoints));
     } else {
       setRedeemPoints('');
     }
     setLastRedeemResult(null);
-  }, [customer?.loyalty?.availablePoints]);
+  }, [customer?.loyalty?.availablePoints, customer?.loyalty?.maxRedeemablePoints, customer?.loyalty?.threshold]);
 
   // Handle input changes
   const handleInputChange = (field, value) => {
@@ -250,6 +256,27 @@ const AccountProfile = () => {
       return;
     }
 
+    const maxRedeemablePoints = Math.max(0, customer.loyalty.maxRedeemablePoints || 0);
+    const maxPercent = Number.isFinite(customer.loyalty.maxDiscountPercent) && customer.loyalty.maxDiscountPercent > 0
+      ? customer.loyalty.maxDiscountPercent
+      : Number.parseFloat(import.meta.env.VITE_LOYALTY_MAX_DISCOUNT_PERCENT || '15');
+    const percentLabel = `${maxPercent}%`;
+    if (maxRedeemablePoints > 0 && points > maxRedeemablePoints) {
+      toast({
+        title: tWithFallback('account.loyalty.maxLimitTitle', 'Redemption limit reached'),
+        description: tWithFallback(
+          'account.loyalty.maxLimitDescription',
+          'You can redeem up to {{points}} points ({{percent}}) per purchase.',
+          {
+            points: maxRedeemablePoints.toLocaleString(),
+            percent: percentLabel,
+          }
+        ),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setRedeemLoading(true);
       const response = await redeemCustomerPoints(customer.id, points);
@@ -295,11 +322,18 @@ const AccountProfile = () => {
   };
 
   const loyalty = customer?.loyalty;
+  const maxDiscountPercent = Number.isFinite(loyalty?.maxDiscountPercent) && loyalty.maxDiscountPercent > 0
+    ? loyalty.maxDiscountPercent
+    : Number.parseFloat(import.meta.env.VITE_LOYALTY_MAX_DISCOUNT_PERCENT || '15');
+  const percentLabel = `${maxDiscountPercent}%`;
+  const maxRedeemablePoints = Math.max(0, loyalty?.maxRedeemablePoints ?? 0);
+  const maxPointsPerRedemption = Math.max(maxRedeemablePoints, loyalty?.threshold || 0);
   const canRedeem = Boolean(
     isAdminApiConfigured() &&
       loyalty &&
       loyalty.availablePoints > 0 &&
-      (!loyalty.threshold || loyalty.availablePoints >= loyalty.threshold)
+      (!loyalty.threshold || loyalty.availablePoints >= loyalty.threshold) &&
+      maxPointsPerRedemption > 0
   );
 
   return (
@@ -608,12 +642,25 @@ const AccountProfile = () => {
                         id="loyalty-points"
                         type="number"
                         min={loyalty.threshold || 1}
+                        max={maxPointsPerRedemption > 0 ? maxPointsPerRedemption : undefined}
                         step={1}
                         value={redeemPoints}
                         onChange={(event) => setRedeemPoints(event.target.value)}
                         className="mt-1 bg-gray-900 border-gray-700 text-white"
                         disabled={!isAdminApiConfigured() || redeemLoading}
                       />
+                      {maxPointsPerRedemption > 0 && (
+                        <p className="text-xs text-gray-400 mt-2">
+                          {tWithFallback(
+                          'account.loyalty.maxLimitHelper',
+                          'Maximum per purchase: {{points}} points ({{percent}}).',
+                          {
+                            points: maxPointsPerRedemption.toLocaleString(),
+                            percent: percentLabel,
+                          }
+                        )}
+                        </p>
+                      )}
                     </div>
                     <Button
                       onClick={handleRedeem}
