@@ -56,6 +56,7 @@ async function adminRestFetch(path, { method = 'GET', headers = {}, body } = {})
     method,
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       'X-Shopify-Access-Token': ADMIN_TOKEN,
       ...headers,
     },
@@ -375,14 +376,45 @@ async function deleteCustomerAddress(customerId, addressId) {
 }
 
 async function setDefaultAddress(customerId, addressId) {
-  const numericCustomerId = toNumericId(customerId);
-  const numericAddressId = toNumericId(addressId);
+  const mutation = `
+    mutation customerDefaultAddressUpdate($customerId: ID!, $addressId: ID!) {
+      customerDefaultAddressUpdate(customerId: $customerId, addressId: $addressId) {
+        customer {
+          defaultAddress {
+            id
+            firstName
+            lastName
+            company
+            address1
+            address2
+            city
+            province
+            provinceCode
+            zip
+            country
+            countryCode
+            phone
+          }
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
 
-  const data = await adminRestFetch(`customers/${numericCustomerId}/addresses/${numericAddressId}/default.json`, {
-    method: 'PUT',
+  const data = await adminFetch(mutation, {
+    customerId,
+    addressId,
   });
 
-  return normalizeAddressForClient(data?.customer_address);
+  const result = data?.customerDefaultAddressUpdate;
+  if (result?.userErrors?.length) {
+    throw new Error(result.userErrors.map((err) => err.message).join(', '));
+  }
+
+  return normalizeAddressForClient(result?.customer?.defaultAddress);
 }
 
 async function getOrderDetails(orderId) {

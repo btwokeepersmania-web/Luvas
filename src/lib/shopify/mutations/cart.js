@@ -39,17 +39,19 @@ export const createCartAndGetCheckoutUrl = async (
 
   if (shippingAddress) {
     const deliveryAddressInput = {
-      deliveryAddress: {
-        address1: shippingAddress.address1,
-        address2: shippingAddress.address2 || null,
-        city: shippingAddress.city,
-        company: shippingAddress.company || null,
-        countryCode: shippingAddress.countryCode || null,
-        firstName: shippingAddress.firstName,
-        lastName: shippingAddress.lastName,
-        phone: shippingAddress.phone || null,
-        provinceCode: shippingAddress.provinceCode || null,
-        zip: shippingAddress.zip || null,
+      address: {
+        deliveryAddress: {
+          address1: shippingAddress.address1,
+          address2: shippingAddress.address2 || null,
+          city: shippingAddress.city,
+          company: shippingAddress.company || null,
+          countryCode: shippingAddress.countryCode || null,
+          firstName: shippingAddress.firstName,
+          lastName: shippingAddress.lastName,
+          phone: shippingAddress.phone || null,
+          provinceCode: shippingAddress.provinceCode || null,
+          zip: shippingAddress.zip || null,
+        },
       },
       oneTimeUse: true,
       selected: true,
