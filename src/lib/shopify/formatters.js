@@ -1,3 +1,9 @@
+const parseQuantity = (value) => {
+  if (value === null || value === undefined) return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
 export const formatProduct = (node) => ({
   id: node.id,
   title: node.title,
@@ -23,7 +29,7 @@ export const formatProduct = (node) => ({
     id: variantNode?.id,
     title: variantNode?.title,
     availableForSale: Boolean(variantNode?.availableForSale),
-    quantityAvailable: variantNode?.quantityAvailable ?? 0,
+    quantityAvailable: parseQuantity(variantNode?.quantityAvailable),
     price: variantNode?.price?.amount ?? null,
     currency: variantNode?.price?.currencyCode ?? null,
     compareAtPrice: variantNode?.compareAtPrice?.amount ?? null,
@@ -56,7 +62,7 @@ export const formatProducts = (edges) => {
       id: variantNode?.id,
       title: variantNode?.title,
       availableForSale: Boolean(variantNode?.availableForSale),
-      quantityAvailable: variantNode?.quantityAvailable ?? 0,
+      quantityAvailable: parseQuantity(variantNode?.quantityAvailable),
       price: variantNode?.price?.amount ?? null,
       currency: variantNode?.price?.currencyCode ?? null,
       compareAtPrice: variantNode?.compareAtPrice?.amount ?? null,
