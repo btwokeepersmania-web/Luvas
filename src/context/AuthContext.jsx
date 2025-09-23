@@ -289,6 +289,30 @@ export const AuthProvider = ({ children }) => {
   }, [customer?.id, adminApiEnabled, cartItems, note]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+
+    const handleAuthMessage = async (event) => {
+      if (!event?.data || event.origin !== window.location.origin) return;
+      if (event.data.source !== 'shopify-auth') return;
+
+      if (event.data.status === 'success') {
+        try {
+          await fetchCustomerFromAPI();
+        } catch (err) {
+          console.error('Failed to refresh customer after popup login:', err);
+        }
+      }
+
+      if (event.data.status === 'error') {
+        console.error('Shopify login error:', event.data.error);
+      }
+    };
+
+    window.addEventListener('message', handleAuthMessage);
+    return () => window.removeEventListener('message', handleAuthMessage);
+  }, [fetchCustomerFromAPI]);
+
+  useEffect(() => {
     const initializeAuth = async () => {
       setLoading(true);
 

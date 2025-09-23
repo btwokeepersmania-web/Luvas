@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext.jsx';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.jsx';
-import { Loader2, LogIn, ExternalLink, Shield, Mail } from 'lucide-react';
+import { LogIn, ExternalLink, Shield, Mail } from 'lucide-react';
 import { useShopify } from '@/context/ShopifyContext.jsx';
 import { initiateLogin, isConfigured as isCustomerAuthConfigured } from '@/lib/shopify/customerAuth.js';
 import InAppLogin from '@/components/InAppLogin.jsx';
@@ -44,6 +44,7 @@ const LoginPage = () => {
     try {
       // persist desired return path across external redirect
       sessionStorage.setItem('auth_return_to', from || '/account');
+      setLoading(true);
       await initiateLogin();
     } catch (error) {
       console.error('Secure login initiation failed:', error);
@@ -52,6 +53,26 @@ const LoginPage = () => {
       window.location.href = shopifyLoginUrl;
     }
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return () => {};
+
+    const handler = (event) => {
+      if (!event?.data || event.origin !== window.location.origin) return;
+      if (event.data.source !== 'shopify-auth') return;
+
+      setLoading(false);
+
+      if (event.data.status === 'success') {
+        const returnTo = event.data.returnTo || sessionStorage.getItem('auth_return_to') || from || '/account';
+        sessionStorage.removeItem('auth_return_to');
+        navigate(returnTo, { replace: true });
+      }
+    };
+
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [navigate, from]);
 
   return (
     <>

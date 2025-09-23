@@ -74,10 +74,7 @@ export async function initiateLogin() {
 
   const { codeVerifier, codeChallenge } = await generatePKCE();
   const state = generateState();
-  
-  // Store PKCE verifier and state for later verification
-  storeAuthData({ codeVerifier, state });
-  
+
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: CLIENT_ID,
@@ -87,9 +84,27 @@ export async function initiateLogin() {
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
   });
-  
+
   const authUrl = `${ENDPOINTS.authorize}?${params.toString()}`;
+
+  const popupFeatures = 'width=520,height=640,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes';
+  const popup = window.open(authUrl, 'shopify-customer-login', popupFeatures);
+  const mode = popup ? 'popup' : 'redirect';
+
+  // Store PKCE verifier and state for later verification
+  storeAuthData({ codeVerifier, state, mode });
+
+  if (popup) {
+    try {
+      popup.focus();
+    } catch (err) {
+      console.warn('Unable to focus Shopify auth popup:', err);
+    }
+    return { mode: 'popup' };
+  }
+
   window.location.href = authUrl;
+  return { mode: 'redirect' };
 }
 
 /**

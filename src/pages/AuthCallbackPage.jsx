@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
@@ -14,6 +14,23 @@ const AuthCallbackPage = () => {
   const navigate = useNavigate();
   const { fetchCustomerData } = useAuth();
   const { t } = useTranslation();
+  const [isPopup] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return Boolean(window.opener && !window.opener.closed && window.opener.location.origin === window.location.origin);
+    } catch (err) {
+      return false;
+    }
+  });
+
+  const notifyParent = useCallback((payload) => {
+    if (!isPopup) return;
+    try {
+      window.opener.postMessage({ source: 'shopify-auth', ...payload }, window.location.origin);
+    } catch (err) {
+      console.error('Failed to notify opener window:', err);
+    }
+  }, [isPopup]);
   
   useEffect(() => {
     const processCallback = async () => {
@@ -64,8 +81,14 @@ const AuthCallbackPage = () => {
         // No email or 2FA not required: complete login
         setStatus('success');
         const returnTo = sessionStorage.getItem('auth_return_to') || '/account';
-        // clear stored return path
         sessionStorage.removeItem('auth_return_to');
+
+        if (isPopup) {
+          notifyParent({ status: 'success', returnTo });
+          window.close();
+          return;
+        }
+
         setTimeout(() => {
           navigate(returnTo, { replace: true });
         }, 1200);
@@ -74,6 +97,12 @@ const AuthCallbackPage = () => {
         console.error('Authentication callback error:', err);
         setError(err.message);
         setStatus('error');
+
+        if (isPopup) {
+          notifyParent({ status: 'error', error: err.message });
+          setTimeout(() => window.close(), 400);
+          return;
+        }
 
         // Redirect to login page after error display
         setTimeout(() => {
@@ -101,17 +130,23 @@ const AuthCallbackPage = () => {
         body: JSON.stringify({ action: 'verify-code', email, code: codeInput }),
       });
       const json = await res.json();
-      if (json.success) {
-        // mark 2FA done and fetch customer data again just in case
-        sessionStorage.removeItem('auth_2fa_email');
-        if (json.customer) {
-          // optionally set customer in context by fetching from API
-          try { await fetchCustomerData(); } catch(e) { /* ignore */ }
-        }
-        setStatus('success');
-        const returnTo = sessionStorage.getItem('auth_return_to') || '/account';
-        sessionStorage.removeItem('auth_return_to');
-        setTimeout(() => navigate(returnTo, { replace: true }), 800);
+        if (json.success) {
+          // mark 2FA done and fetch customer data again just in case
+          sessionStorage.removeItem('auth_2fa_email');
+          if (json.customer) {
+            try { await fetchCustomerData(); } catch(e) { /* ignore */ }
+          }
+          setStatus('success');
+          const returnTo = sessionStorage.getItem('auth_return_to') || '/account';
+          sessionStorage.removeItem('auth_return_to');
+
+          if (isPopup) {
+            notifyParent({ status: 'success', returnTo });
+            setTimeout(() => window.close(), 400);
+            return;
+          }
+
+          setTimeout(() => navigate(returnTo, { replace: true }), 800);
       } else {
         setVerifyError(json.error || 'Invalid code');
       }
