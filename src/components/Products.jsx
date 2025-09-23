@@ -111,6 +111,8 @@ const Products = () => {
             const remainingStock = typeof effectiveMax === 'number'
               ? Math.max(0, effectiveMax - totalVariantInCart)
               : null;
+            const stockAllows = remainingStock === null || remainingStock > 0;
+            const variantAvailable = Boolean(defaultVariant) && (defaultVariant.availableForSale !== false || stockAllows);
             const price = defaultVariant?.price ?? product.price;
             const currency = defaultVariant?.currency ?? product.currency;
             const compareAtPrice = defaultVariant?.compareAtPrice ?? product.compareAtPrice;
@@ -120,8 +122,8 @@ const Products = () => {
             const discountPercent = hasDiscount
               ? Math.max(1, Math.round(((compareNumber - priceNumber) / compareNumber) * 100))
               : null;
-            const canAddMore = Boolean(defaultVariant) && defaultVariant.availableForSale !== false && (remainingStock === null || remainingStock > 0);
-            const addDisabled = !canAddMore;
+            const canAddMore = variantAvailable && stockAllows;
+            const addDisabled = !defaultVariant || !canAddMore;
             const plusDisabled = !defaultVariant || (remainingStock !== null && remainingStock <= 0);
             const minusDisabled = !cartItem || cartQuantity <= 0;
 

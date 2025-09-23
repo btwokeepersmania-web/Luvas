@@ -28,7 +28,7 @@ export const formatProduct = (node) => ({
   variants: Array.isArray(node.variants?.edges) ? node.variants.edges.map(({ node: variantNode }) => ({
     id: variantNode?.id,
     title: variantNode?.title,
-    availableForSale: Boolean(variantNode?.availableForSale),
+    availableForSale: variantNode?.availableForSale !== false,
     quantityAvailable: parseQuantity(variantNode?.quantityAvailable),
     price: variantNode?.price?.amount ?? null,
     currency: variantNode?.price?.currencyCode ?? null,
@@ -61,7 +61,7 @@ export const formatProducts = (edges) => {
     variants: Array.isArray(node.variants?.edges) ? node.variants.edges.map(({ node: variantNode }) => ({
       id: variantNode?.id,
       title: variantNode?.title,
-      availableForSale: Boolean(variantNode?.availableForSale),
+      availableForSale: variantNode?.availableForSale !== false,
       quantityAvailable: parseQuantity(variantNode?.quantityAvailable),
       price: variantNode?.price?.amount ?? null,
       currency: variantNode?.price?.currencyCode ?? null,
