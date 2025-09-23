@@ -36,6 +36,7 @@ import {
   AlertDialogTrigger
 } from '@/components/ui/alert-dialog.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
+
 import {
   getCustomerByEmail,
   createCustomerAddress,
@@ -46,6 +47,11 @@ import {
   validateAddress
 } from '@/lib/shopify/adminApi.js';
 import { toast } from '@/components/ui/use-toast.js';
+
+const tWithFallback = (translator, key, fallback) => {
+  const translated = translator(key);
+  return translated === key ? fallback : translated;
+};
 
 const normalizeAddresses = (addresses) => {
   if (!addresses) return [];
@@ -308,11 +314,12 @@ const AccountAddresses = () => {
       setSaving(true);
 
       const option = resolveCountryOption(formData.country);
+      const resolvedCountryCode = (option?.code || formData.countryCode || '').toUpperCase() || undefined;
       const payload = {
         ...formData,
-        country: (option?.code || formData.countryCode || formData.country || '').toUpperCase(),
+        country: option?.name || formData.country || '',
+        countryCode: resolvedCountryCode,
       };
-      delete payload.countryCode;
       if (payload.province) {
         const trimmedProvince = payload.province.trim();
         payload.province = trimmedProvince;
@@ -522,7 +529,7 @@ const AccountAddresses = () => {
                         <SelectTrigger className="bg-gray-800 border-gray-700 text-left">
                           <SelectValue placeholder={t('account.addresses.selectCountry')} />
                         </SelectTrigger>
-                        <SelectContent className="max-h-64 bg-gray-900 text-white">
+                        <SelectContent className="max-h-64 overflow-y-auto bg-gray-900 text-white" position="popper">
                           {countryOptions.map((option) => (
                             <SelectItem key={option.code} value={option.code}>
                               {option.name}
