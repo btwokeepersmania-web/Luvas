@@ -112,7 +112,7 @@
   "subscription.button.month": "month",
   "subscription.error.title": "Subscription Failed",
   "subscription.error.description": "Could not initiate subscription. Please try again.",
-  "emailSubscription.title": "Subscribe to earn 15% off!",
+  "emailSubscription.title": "Subscribe to earn Points",
   "emailSubscription.subtitle": "Be the first to earn points, buy products, and enjoy exclusive discounts.",
   "emailSubscription.placeholder": "Email",
   "emailSubscription.success.title": "Subscription successful!",
