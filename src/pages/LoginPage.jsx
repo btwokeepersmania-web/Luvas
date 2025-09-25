@@ -37,8 +37,13 @@ const LoginPage = () => {
   };
 
   const returnUrl = encodeURIComponent(`${window.location.origin}/auth/callback`);
-  const shopifyLoginUrl = `https://${import.meta.env.VITE_SHOPIFY_DOMAIN}/account/login?return_url=${returnUrl}`;
-  const shopifyRegisterUrl = `https://${import.meta.env.VITE_SHOPIFY_DOMAIN}/account/register?return_url=${returnUrl}`;
+  const rawCustomerDomain = import.meta.env.VITE_SHOPIFY_CUSTOMER_ACCOUNT_DOMAIN || import.meta.env.VITE_SHOPIFY_DOMAIN;
+  const customerDomain = rawCustomerDomain?.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const accountBase = customerDomain
+    ? (customerDomain.includes('/account') ? `https://${customerDomain}` : `https://${customerDomain}/account`)
+    : null;
+  const shopifyLoginUrl = accountBase ? `${accountBase}/login?return_url=${returnUrl}` : '';
+  const shopifyRegisterUrl = accountBase ? `${accountBase}/register?return_url=${returnUrl}` : '';
 
   const popupFeatures = 'width=520,height=640,menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes';
 

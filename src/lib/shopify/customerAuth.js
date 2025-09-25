@@ -4,15 +4,20 @@
  */
 
 const CLIENT_ID = import.meta.env.VITE_SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID;
-const SHOP_DOMAIN = import.meta.env.VITE_SHOPIFY_DOMAIN;
+const RAW_CUSTOMER_DOMAIN = import.meta.env.VITE_SHOPIFY_CUSTOMER_ACCOUNT_DOMAIN || import.meta.env.VITE_SHOPIFY_DOMAIN;
+const SHOP_DOMAIN = RAW_CUSTOMER_DOMAIN?.replace(/^https?:\/\//, '').replace(/\/$/, '');
 const REDIRECT_URI = `${window.location.origin}/auth/callback`;
+
+const ACCOUNT_BASE = SHOP_DOMAIN?.includes('/account')
+  ? `https://${SHOP_DOMAIN}`
+  : `https://${SHOP_DOMAIN}/account`;
 
 // Customer Account API endpoints
 const ENDPOINTS = {
   authorize: `https://${SHOP_DOMAIN}/auth/oauth/authorize`,
   token: `https://${SHOP_DOMAIN}/auth/oauth/token`,
-  logout: `https://${SHOP_DOMAIN}/account/logout`,
-  customerAccount: `https://${SHOP_DOMAIN}/account/customer/api/2024-07/graphql`,
+  logout: `${ACCOUNT_BASE}/logout`,
+  customerAccount: `${ACCOUNT_BASE}/customer/api/2024-07/graphql`,
 };
 
 /**

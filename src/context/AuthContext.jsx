@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }) => {
   const adminApiEnabled = isAdminApiConfigured();
   const cartHydrated = useRef(false);
   const cartPersistTimeout = useRef(null);
+  const focusRefreshTimeout = useRef(null);
 
   const normalizeCustomerShape = useCallback((rawCustomer) => {
     if (!rawCustomer) return null;
@@ -256,12 +257,21 @@ export const AuthProvider = ({ children }) => {
     }
 
     const savedCart = customer.savedCart;
-    if (!cartHydrated.current) {
-      if (savedCart && Array.isArray(savedCart.items)) {
-        replaceCart(savedCart.items, savedCart.note || '');
+    const normalizedItems = Array.isArray(savedCart?.items) ? savedCart.items : [];
+    const normalizedNote = savedCart?.note || '';
+
+    if (savedCart && Array.isArray(savedCart.items)) {
+      const isSameItems = JSON.stringify(cartItems) === JSON.stringify(normalizedItems);
+      const isSameNote = (note || '') === normalizedNote;
+      if (!cartHydrated.current || !isSameItems || !isSameNote) {
+        replaceCart(normalizedItems, normalizedNote);
       }
-      cartHydrated.current = true;
+    } else if (!savedCart && (cartItems.length > 0 || (note && note.trim()))) {
+      replaceCart([], '');
+    } else if (!cartHydrated.current) {
+      replaceCart([], '');
     }
+    cartHydrated.current = true;
 
     return () => {
       if (cartPersistTimeout.current) {
@@ -269,7 +279,7 @@ export const AuthProvider = ({ children }) => {
         cartPersistTimeout.current = null;
       }
     };
-  }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart]);
+  }, [customer?.id, customer?.savedCart, adminApiEnabled, cartItems, note, replaceCart]);
 
   useEffect(() => {
     if (!customer?.id || !adminApiEnabled || !cartHydrated.current) {
@@ -305,6 +315,32 @@ export const AuthProvider = ({ children }) => {
       }
     };
   }, [customer?.id, adminApiEnabled, cartItems, note]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !adminApiEnabled) return () => {};
+
+    const handleFocus = () => {
+      if (!customer?.id) return;
+      if (focusRefreshTimeout.current) return;
+
+      focusRefreshTimeout.current = setTimeout(() => {
+        focusRefreshTimeout.current = null;
+      }, 5000);
+
+      fetchCustomerFromAPI().catch((error) => {
+        console.error('Failed to refresh customer on focus:', error);
+      });
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      if (focusRefreshTimeout.current) {
+        clearTimeout(focusRefreshTimeout.current);
+        focusRefreshTimeout.current = null;
+      }
+    };
+  }, [adminApiEnabled, customer?.id, fetchCustomerFromAPI]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return () => {};
