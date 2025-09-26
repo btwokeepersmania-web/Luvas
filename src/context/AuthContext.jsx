@@ -264,15 +264,14 @@ export const AuthProvider = ({ children }) => {
         replaceCart(normalizedItems, normalizedNote);
       }
       cartHydrated.current = true;
-    } else if (!cartHydrated.current) {
-      replaceCart([], '');
-      cartHydrated.current = true;
-      hadRemoteCart.current = false;
-    } else if (hadRemoteCart.current) {
-      if (cartItems.length > 0 || (note && note.trim())) {
+    } else {
+      if (!cartHydrated.current) {
+        cartHydrated.current = true;
+        hadRemoteCart.current = false;
+      } else if (hadRemoteCart.current) {
         replaceCart([], '');
+        hadRemoteCart.current = false;
       }
-      hadRemoteCart.current = false;
     }
 
     return () => {
@@ -281,7 +280,7 @@ export const AuthProvider = ({ children }) => {
         cartPersistTimeout.current = null;
       }
     };
-  }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart]);
+  }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart, cartItems, note]);
 
   useEffect(() => {
     if (!customer?.id || !adminApiEnabled || !cartHydrated.current) {
