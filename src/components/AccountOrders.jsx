@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext.jsx';
 import { useTranslation } from 'react-i18next';
 import { useLocalization } from '@/context/LocalizationContext.jsx';
@@ -36,6 +37,7 @@ const AccountOrders = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [orderDetails, setOrderDetails] = useState({});
   const [loadingDetails, setLoadingDetails] = useState(new Set());
+  const [expandedItemKeys, setExpandedItemKeys] = useState(new Set());
 
   const formatMoney = (amount, currencyCode, fallback) => {
     const safeCurrency = currencyCode || 'GBP';
@@ -207,6 +209,15 @@ const AccountOrders = () => {
     const alreadyExpanded = newExpanded.has(orderId);
     if (alreadyExpanded) {
       newExpanded.delete(orderId);
+      setExpandedItemKeys((prev) => {
+        const next = new Set(prev);
+        Array.from(next).forEach((key) => {
+          if (key.startsWith(`${orderId}-`)) {
+            next.delete(key);
+          }
+        });
+        return next;
+      });
     } else {
       newExpanded.add(orderId);
       if (!orderDetails[orderId] && !loadingDetails.has(orderId)) {
@@ -214,6 +225,17 @@ const AccountOrders = () => {
       }
     }
     setExpandedOrders(newExpanded);
+  };
+
+  const toggleItemDetails = (orderId, itemKey) => {
+    const key = `${orderId}-${itemKey}`;
+    const next = new Set(expandedItemKeys);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    setExpandedItemKeys(next);
   };
 
   // Get order status details
@@ -603,35 +625,144 @@ const AccountOrders = () => {
                             <Package className="h-4 w-4" />
                             {t('account.orders.items')}
                           </h4>
-                          
+
                           <div className="space-y-3">
-                            {order.lineItems?.edges?.map(({ node: item }) => {
+                            {(details?.lineItems?.edges?.length ? details.lineItems.edges : order.lineItems?.edges || []).map(({ node: item }) => {
                               const unitMoney = item.originalUnitPriceSet?.shopMoney || null;
                               const lineMoney = item.discountedTotalSet?.shopMoney || (unitMoney ? { ...unitMoney, amount: (Number(item.quantity) * Number(unitMoney.amount || 0)).toFixed(2) } : null);
+                              const variant = item.variant || {};
+                              const productInfo = variant.product || {};
+                              const selectedOptions = variant.selectedOptions || [];
+                              const customAttributes = item.customAttributes || [];
+                              const hasOptions = selectedOptions.length > 0;
+                              const hasCustomisations = customAttributes.some((attr) => attr?.value);
+                              const itemKey = `${order.id}-${item.id || variant.id || item.title}`;
+                              const isItemExpanded = expandedItemKeys.has(itemKey);
+                              const buyAgainHandle = productInfo.handle;
+                              const buyAgainExternal = productInfo.onlineStoreUrl;
+                              const buyAgainUrl = buyAgainHandle ? `/products/${buyAgainHandle}` : buyAgainExternal || null;
+
                               return (
-                                <div key={`${item.variant?.id}-${item.title}`} className="flex flex-col md:flex-row md:items-center gap-4 bg-gray-800 p-3 rounded-lg">
-                                  {item.variant?.image?.url && (
-                                    <img
-                                      src={item.variant.image.url}
-                                      alt={item.variant.image.altText || item.title}
-                                      className="w-16 h-16 object-cover rounded-md border-2 border-gray-700"
-                                    />
-                                  )}
-                                  <div className="flex-1 space-y-1">
-                                    <p className="font-semibold text-white">{item.title}</p>
-                                    {item.variant?.title && item.variant.title !== 'Default Title' && (
-                                      <p className="text-sm text-gray-400">{item.variant.title}</p>
+                                <div key={itemKey} className="bg-gray-800/80 border border-gray-700 rounded-lg overflow-hidden">
+                                  <div className="flex flex-col md:flex-row md:items-center gap-4 p-4">
+                                    {variant?.image?.url ? (
+                                      <img
+                                        src={variant.image.url}
+                                        alt={variant.image.altText || item.title}
+                                        className="w-16 h-16 object-cover rounded-md border-2 border-gray-700"
+                                      />
+                                    ) : (
+                                      <div className="w-16 h-16 flex items-center justify-center rounded-md border-2 border-gray-700 bg-gray-900 text-gray-600">
+                                        <Package className="h-6 w-6" />
+                                      </div>
                                     )}
-                                    <p className="text-sm text-gray-400">{t('account.orders.quantity')}: {item.quantity}</p>
+                                    <div className="flex-1 space-y-1">
+                                      <p className="font-semibold text-white">{item.title}</p>
+                                      {variant?.title && variant.title !== 'Default Title' && (
+                                        <p className="text-sm text-gray-400">{variant.title}</p>
+                                      )}
+                                      <p className="text-sm text-gray-400">{t('account.orders.quantity')}: {item.quantity}</p>
+                                    </div>
+                                    <div className="text-sm text-gray-300 md:text-right space-y-1">
+                                      {unitMoney && (
+                                        <p>{t('account.orders.priceEach')}: <span className="font-medium">{formatMoney(unitMoney.amount, unitMoney.currencyCode)}</span></p>
+                                      )}
+                                      {lineMoney && (
+                                        <p>{t('account.orders.lineTotal')}: <span className="font-medium">{formatMoney(lineMoney.amount, lineMoney.currencyCode)}</span></p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center justify-end md:justify-start">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => toggleItemDetails(order.id, item.id || variant.id || item.title)}
+                                        className="border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/10"
+                                      >
+                                        {isItemExpanded ? (
+                                          <span className="flex items-center gap-1">
+                                            <ChevronUp className="h-4 w-4" />
+                                            {t('account.orders.hideItemDetails')}
+                                          </span>
+                                        ) : (
+                                          <span className="flex items-center gap-1">
+                                            <ChevronDown className="h-4 w-4" />
+                                            {t('account.orders.viewItemDetails')}
+                                          </span>
+                                        )}
+                                      </Button>
+                                    </div>
                                   </div>
-                                  <div className="text-sm text-gray-300 md:text-right">
-                                    {unitMoney && (
-                                      <p>{t('account.orders.priceEach')}: <span className="font-medium">{formatMoney(unitMoney.amount, unitMoney.currencyCode)}</span></p>
+
+                                  <AnimatePresence>
+                                    {isItemExpanded && (
+                                      <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        transition={{ duration: 0.25 }}
+                                        className="px-4 pb-4 space-y-3 bg-gray-900/60 border-t border-gray-700"
+                                      >
+                                        <div className="grid gap-3 md:grid-cols-2">
+                                          {variant?.sku && (
+                                            <div className="text-sm text-gray-300">
+                                              <span className="font-medium text-yellow-300">{t('account.orders.sku')}</span>
+                                              <p className="font-mono">{variant.sku}</p>
+                                            </div>
+                                          )}
+
+                                          {hasOptions && (
+                                            <div className="text-sm text-gray-300 space-y-1">
+                                              <span className="font-medium text-yellow-300">{t('account.orders.selectedOptions')}</span>
+                                              <ul className="space-y-0.5">
+                                                {selectedOptions.map((opt) => (
+                                                  <li key={`${itemKey}-${opt.name}`} className="flex items-center gap-2">
+                                                    <span className="text-gray-400">{opt.name}:</span>
+                                                    <span>{opt.value}</span>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
+
+                                          {hasCustomisations && (
+                                            <div className="text-sm text-gray-300 space-y-1">
+                                              <span className="font-medium text-yellow-300">{t('account.orders.customizations')}</span>
+                                              <ul className="space-y-0.5">
+                                                {customAttributes.filter((attr) => attr?.value).map((attr) => (
+                                                  <li key={`${itemKey}-${attr.key}`} className="flex items-center gap-2">
+                                                    <span className="text-gray-400">{attr.key}:</span>
+                                                    <span>{attr.value}</span>
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {buyAgainUrl && (
+                                          <div className="pt-2">
+                                            {buyAgainHandle ? (
+                                              <Link
+                                                to={buyAgainUrl}
+                                                className="inline-flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold px-4 py-2 rounded-md"
+                                              >
+                                                {t('account.orders.buyAgain')}
+                                              </Link>
+                                            ) : (
+                                              <a
+                                                href={buyAgainUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold px-4 py-2 rounded-md"
+                                              >
+                                                {t('account.orders.buyAgain')}
+                                              </a>
+                                            )}
+                                          </div>
+                                        )}
+                                      </motion.div>
                                     )}
-                                    {lineMoney && (
-                                      <p>{t('account.orders.lineTotal')}: <span className="font-medium">{formatMoney(lineMoney.amount, lineMoney.currencyCode)}</span></p>
-                                    )}
-                                  </div>
+                                  </AnimatePresence>
                                 </div>
                               );
                             })}

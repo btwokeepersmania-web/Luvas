@@ -412,10 +412,24 @@ const CUSTOMER_FRAGMENT = `
                 id
                 title
                 sku
+                selectedOptions {
+                  name
+                  value
+                }
                 image {
                   url
                   altText
                 }
+                product {
+                  id
+                  title
+                  handle
+                  onlineStoreUrl
+                }
+              }
+              customAttributes {
+                key
+                value
               }
             }
           }
