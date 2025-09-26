@@ -151,6 +151,10 @@ const AccountOrders = () => {
     }
   }, [customer, fetchEnhancedOrders]);
 
+  useEffect(() => {
+    setExpandedItemKeys(new Set());
+  }, [orders]);
+
   // Refresh orders
 
   const fetchOrderDetailsById = useCallback(async (orderId) => {
