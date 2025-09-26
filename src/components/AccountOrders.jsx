@@ -34,6 +34,75 @@ const AccountOrders = () => {
   const [loading, setLoading] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const [orderDetails, setOrderDetails] = useState({});
+  const [loadingDetails, setLoadingDetails] = useState(new Set());
+
+    const formatMoney = (amount, currencyCode, fallback) => {
+    const safeCurrency = currencyCode || 'GBP';
+    if (amount === null || amount === undefined) {
+      return fallback || formatPrice(0, safeCurrency);
+    }
+    const numeric = typeof amount === 'number' ? amount : Number.parseFloat(amount);
+    if (!Number.isFinite(numeric)) {
+      return fallback || formatPrice(0, safeCurrency);
+    }
+    return formatPrice(numeric, safeCurrency);
+  };
+    const numeric = typeof amount === 'number' ? amount : Number.parseFloat(amount);
+    if (!Number.isFinite(numeric)) {
+      return fallback || formatPrice(0, currencyCode);
+    }
+    return formatPrice(numeric, currencyCode);
+  };
+
+    const buildTimeline = (order, details, translator) => {
+    const timeline = [];
+    const placedAt = order.processedAt || order.createdAt || order.updatedAt;
+    if (placedAt) {
+      timeline.push({
+        key: 'placed',
+        label: translator('account.orders.timeline.placed'),
+        description: translator('account.orders.timeline.placedDescription'),
+        date: placedAt,
+        icon: Calendar,
+        status: 'completed',
+      });
+    }
+
+    const paymentStatus = order.displayFinancialStatus || order.financialStatus;
+    timeline.push({
+      key: 'payment',
+      label: translator('account.orders.timeline.payment'),
+      description: paymentStatus ? paymentStatus.replace(/_/g, ' ') : translator('account.orders.timeline.paymentDescription'),
+      date: placedAt,
+      icon: CreditCard,
+      status: paymentStatus && paymentStatus.toLowerCase().includes('paid') ? 'completed' : 'current',
+    });
+
+    const fulfillments = details?.fulfillments || order.fulfillments || [];
+    const firstFulfillment = fulfillments.find((fulfillment) => fulfillment.status && fulfillment.status !== 'CANCELLED');
+    timeline.push({
+      key: 'fulfillment',
+      label: translator('account.orders.timeline.fulfillment'),
+      description: firstFulfillment?.status ? firstFulfillment.status.replace(/_/g, ' ') : translator('account.orders.timeline.fulfillmentDescription'),
+      date: firstFulfillment?.updatedAt || null,
+      icon: Package,
+      status: firstFulfillment ? 'current' : 'upcoming',
+    });
+
+    const delivered = fulfillments.some((fulfillment) => (fulfillment.status || '').toUpperCase() === 'DELIVERED' || (details?.displayFulfillmentStatus || order.displayFulfillmentStatus || order.fulfillmentStatus) === 'FULFILLED');
+    timeline.push({
+      key: 'delivered',
+      label: translator('account.orders.timeline.delivered'),
+      description: translator('account.orders.timeline.deliveredDescription'),
+      date: fulfillments.find((f) => (f.status || '').toUpperCase() === 'DELIVERED')?.updatedAt || null,
+      icon: Truck,
+      status: delivered ? 'completed' : 'upcoming',
+    });
+
+    return timeline;
+  };
+
   
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString(undefined, {
@@ -88,6 +157,31 @@ const AccountOrders = () => {
   }, [customer, fetchEnhancedOrders]);
 
   // Refresh orders
+
+  const fetchOrderDetailsById = useCallback(async (orderId) => {
+    if (!isAdminApiConfigured() || !orderId) return null;
+    try {
+      setLoadingDetails((prev) => new Set(prev).add(orderId));
+      const data = await getOrderDetails(orderId);
+      setOrderDetails((prev) => ({ ...prev, [orderId]: data || null }));
+      return data || null;
+    } catch (error) {
+      console.error('Failed to fetch order details:', error);
+      toast({
+        title: t('account.orders.detailError'),
+        description: error.message,
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setLoadingDetails((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
+    }
+  }, [t]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -111,10 +205,14 @@ const AccountOrders = () => {
   // Toggle order expansion
   const toggleOrderExpansion = (orderId) => {
     const newExpanded = new Set(expandedOrders);
-    if (newExpanded.has(orderId)) {
+    const alreadyExpanded = newExpanded.has(orderId);
+    if (alreadyExpanded) {
       newExpanded.delete(orderId);
     } else {
       newExpanded.add(orderId);
+      if (!orderDetails[orderId] && !loadingDetails.has(orderId)) {
+        fetchOrderDetailsById(orderId);
+      }
     }
     setExpandedOrders(newExpanded);
   };
@@ -268,6 +366,15 @@ const AccountOrders = () => {
             const fulfillmentStatusLabel = t(fulfillmentStatusKey, {
               defaultValue: fulfillmentStatusRaw ? fulfillmentStatusRaw.replace(/_/g, ' ') : t('account.orders.status.unknown'),
             });
+            const details = orderDetails[order.id];
+            const isDetailLoading = loadingDetails.has(order.id);
+            const subtotalMoney = (details?.currentSubtotalPriceSet || order.currentSubtotalPriceSet)?.shopMoney || null;
+            const shippingMoney = (details?.currentShippingPriceSet || order.currentShippingPriceSet)?.shopMoney || null;
+            const taxMoney = (details?.currentTotalTaxSet || order.currentTotalTaxSet)?.shopMoney || null;
+            const currenciesGuess = totalMoney?.currencyCode || subtotalMoney?.currencyCode || shippingMoney?.currencyCode || taxMoney?.currencyCode || order.currencyCode || 'GBP';
+            const timeline = buildTimeline(order, details, t);
+            const transactions = details?.transactions || [];
+            const fulfillments = details?.fulfillments || order.fulfillments || [];
 
             return (
               <Card key={order.id} className="bg-gray-900 border-yellow-500/20 text-white overflow-hidden">
@@ -346,7 +453,90 @@ const AccountOrders = () => {
                     >
                       <CardContent className="pt-0 space-y-6">
                         <Separator className="border-gray-700" />
-                        
+
+                        {isDetailLoading && !details && (
+                          <div className="flex items-center gap-3 text-sm text-gray-400 bg-gray-800/60 p-3 rounded-lg">
+                            <RefreshCw className="h-4 w-4 animate-spin text-yellow-400" />
+                            {t('account.orders.loadingDetails')}
+                          </div>
+                        )}
+
+                        {timeline.length > 0 && (
+                          <div className="space-y-3">
+                            <h4 className="font-semibold text-yellow-400 flex items-center gap-2">
+                              <Eye className="h-4 w-4" />
+                              {t('account.orders.timeline.title')}
+                            </h4>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {timeline.map((step) => {
+                                const StepIcon = step.icon;
+                                const statusStyles = step.status === 'completed'
+                                  ? 'border-green-500/30 bg-green-500/10 text-green-200'
+                                  : step.status === 'current'
+                                    ? 'border-yellow-500/30 bg-yellow-500/10 text-yellow-200'
+                                    : 'border-gray-700 bg-gray-800 text-gray-400';
+                                return (
+                                  <div key={`${order.id}-${step.key}`} className={`rounded-lg border px-4 py-3 space-y-2 ${statusStyles}`}>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <StepIcon className="h-4 w-4" />
+                                        <span className="font-medium">{step.label}</span>
+                                      </div>
+                                      {step.date && (
+                                        <span className="text-xs text-gray-300">{formatDateShort(step.date)}</span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs leading-relaxed">{step.description}</p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2 bg-gray-800/60 p-4 rounded-lg border border-gray-700">
+                            <h4 className="font-semibold text-yellow-400">{t('account.orders.summary')}</h4>
+                            <div className="flex items-center justify-between text-sm text-gray-300">
+                              <span>{t('account.orders.summarySubtotal')}</span>
+                              <span>{subtotalMoney ? formatMoney(subtotalMoney.amount, subtotalMoney.currencyCode) : formatMoney(totalMoney.amount, totalMoney.currencyCode)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm text-gray-300">
+                              <span>{t('account.orders.summaryShipping')}</span>
+                              <span>{shippingMoney ? formatMoney(shippingMoney.amount, shippingMoney.currencyCode) : formatMoney(0, currenciesGuess)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm text-gray-300">
+                              <span>{t('account.orders.summaryTax')}</span>
+                              <span>{taxMoney ? formatMoney(taxMoney.amount, taxMoney.currencyCode) : formatMoney(0, currenciesGuess)}</span>
+                            </div>
+                            <Separator className="border-gray-700" />
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="font-semibold text-yellow-300">{t('account.orders.summaryTotal')}</span>
+                              <span className="font-semibold text-yellow-300">{formatMoney(totalMoney.amount, totalMoney.currencyCode)}</span>
+                            </div>
+                          </div>
+
+                          {transactions.length > 0 && (
+                            <div className="space-y-2 bg-gray-800/60 p-4 rounded-lg border border-gray-700">
+                              <h4 className="font-semibold text-yellow-400">{t('account.orders.payments')}</h4>
+                              <div className="space-y-3">
+                                {transactions.map((tx) => (
+                                  <div key={tx.id} className="text-sm text-gray-300 bg-gray-900/60 border border-gray-700 rounded-md p-3">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium">{tx.kind} • {tx.gateway}</span>
+                                      <span className="text-xs text-gray-400">{tx.createdAt ? formatDateShort(tx.createdAt) : '—'}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-1">
+                                      <span>{tx.status}</span>
+                                      <span>{formatMoney(tx.amount, currenciesGuess)}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
                         {/* Shipping Address */}
                         {order.shippingAddress && (
                           <div className="space-y-2">
@@ -416,24 +606,36 @@ const AccountOrders = () => {
                           </h4>
                           
                           <div className="space-y-3">
-                            {order.lineItems?.edges?.map(({ node: item }) => (
-                              <div key={`${item.variant?.id}-${item.title}`} className="flex items-center gap-4 bg-gray-800 p-3 rounded-lg">
-                                {item.variant?.image?.url && (
-                                  <img
-                                    src={item.variant.image.url}
-                                    alt={item.variant.image.altText || item.title}
-                                    className="w-16 h-16 object-cover rounded-md border-2 border-gray-700"
-                                  />
-                                )}
-                                <div className="flex-1">
-                                  <p className="font-semibold text-white">{item.title}</p>
-                                  {item.variant?.title && item.variant.title !== 'Default Title' && (
-                                    <p className="text-sm text-gray-400">{item.variant.title}</p>
+                            {order.lineItems?.edges?.map(({ node: item }) => {
+                              const unitMoney = item.originalUnitPriceSet?.shopMoney || null;
+                              const lineMoney = item.discountedTotalSet?.shopMoney || (unitMoney ? { ...unitMoney, amount: (Number(item.quantity) * Number(unitMoney.amount || 0)).toFixed(2) } : null);
+                              return (
+                                <div key={`${item.variant?.id}-${item.title}`} className="flex flex-col md:flex-row md:items-center gap-4 bg-gray-800 p-3 rounded-lg">
+                                  {item.variant?.image?.url && (
+                                    <img
+                                      src={item.variant.image.url}
+                                      alt={item.variant.image.altText || item.title}
+                                      className="w-16 h-16 object-cover rounded-md border-2 border-gray-700"
+                                    />
                                   )}
-                                  <p className="text-sm text-gray-400">{t('account.orders.quantity')}: {item.quantity}</p>
+                                  <div className="flex-1 space-y-1">
+                                    <p className="font-semibold text-white">{item.title}</p>
+                                    {item.variant?.title && item.variant.title !== 'Default Title' && (
+                                      <p className="text-sm text-gray-400">{item.variant.title}</p>
+                                    )}
+                                    <p className="text-sm text-gray-400">{t('account.orders.quantity')}: {item.quantity}</p>
+                                  </div>
+                                  <div className="text-sm text-gray-300 md:text-right">
+                                    {unitMoney && (
+                                      <p>{t('account.orders.priceEach')}: <span className="font-medium">{formatMoney(unitMoney.amount, unitMoney.currencyCode)}</span></p>
+                                    )}
+                                    {lineMoney && (
+                                      <p>{t('account.orders.lineTotal')}: <span className="font-medium">{formatMoney(lineMoney.amount, lineMoney.currencyCode)}</span></p>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
 
