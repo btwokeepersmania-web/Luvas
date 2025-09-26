@@ -263,14 +263,33 @@ export const AuthProvider = ({ children }) => {
       if (!cartHydrated.current || !isSameItems || !isSameNote) {
         replaceCart(normalizedItems, normalizedNote);
       }
-    } else if (!cartHydrated.current) {
-      replaceCart([], '');
-    } else if (hadRemoteCart.current) {
+      cartHydrated.current = true;
+      return () => {
+        if (cartPersistTimeout.current) {
+          clearTimeout(cartPersistTimeout.current);
+          cartPersistTimeout.current = null;
+        }
+      };
+    }
+
+    if (!cartHydrated.current) {
+      cartHydrated.current = true;
+      hadRemoteCart.current = false;
+      return () => {
+        if (cartPersistTimeout.current) {
+          clearTimeout(cartPersistTimeout.current);
+          cartPersistTimeout.current = null;
+        }
+      };
+    }
+
+    if (hadRemoteCart.current) {
       if (cartItems.length > 0 || (note && note.trim())) {
         replaceCart([], '');
       }
       hadRemoteCart.current = false;
     }
+
     cartHydrated.current = true;
 
     return () => {
