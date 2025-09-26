@@ -37,7 +37,7 @@ const AccountOrders = () => {
   const [orderDetails, setOrderDetails] = useState({});
   const [loadingDetails, setLoadingDetails] = useState(new Set());
 
-    const formatMoney = (amount, currencyCode, fallback) => {
+  const formatMoney = (amount, currencyCode, fallback) => {
     const safeCurrency = currencyCode || 'GBP';
     if (amount === null || amount === undefined) {
       return fallback || formatPrice(0, safeCurrency);
@@ -48,14 +48,8 @@ const AccountOrders = () => {
     }
     return formatPrice(numeric, safeCurrency);
   };
-    const numeric = typeof amount === 'number' ? amount : Number.parseFloat(amount);
-    if (!Number.isFinite(numeric)) {
-      return fallback || formatPrice(0, currencyCode);
-    }
-    return formatPrice(numeric, currencyCode);
-  };
 
-    const buildTimeline = (order, details, translator) => {
+  const buildTimeline = (order, details, translator) => {
     const timeline = [];
     const placedAt = order.processedAt || order.createdAt || order.updatedAt;
     if (placedAt) {
@@ -69,14 +63,16 @@ const AccountOrders = () => {
       });
     }
 
-    const paymentStatus = order.displayFinancialStatus || order.financialStatus;
+    const paymentStatusRaw = order.displayFinancialStatus || order.financialStatus || '';
+    const paymentStatus = paymentStatusRaw ? paymentStatusRaw.toString() : '';
+    const paymentIsPaid = paymentStatus.toLowerCase().includes('paid');
     timeline.push({
       key: 'payment',
       label: translator('account.orders.timeline.payment'),
       description: paymentStatus ? paymentStatus.replace(/_/g, ' ') : translator('account.orders.timeline.paymentDescription'),
       date: placedAt,
       icon: CreditCard,
-      status: paymentStatus && paymentStatus.toLowerCase().includes('paid') ? 'completed' : 'current',
+      status: paymentIsPaid ? 'completed' : 'current',
     });
 
     const fulfillments = details?.fulfillments || order.fulfillments || [];
@@ -103,7 +99,6 @@ const AccountOrders = () => {
     return timeline;
   };
 
-  
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString(undefined, {
       year: 'numeric',
@@ -180,7 +175,7 @@ const AccountOrders = () => {
         return next;
       });
     }
-  }, [t]);
+  }, [t, isAdminApiConfigured]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -414,7 +409,7 @@ const AccountOrders = () => {
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <p className="text-2xl font-bold text-white">
-                            {formatPrice(totalMoney.amount, totalMoney.currencyCode)}
+                            {formatMoney(totalMoney.amount, totalMoney.currencyCode)}
                           </p>
                           <p className="text-xs text-gray-400">
                             {orderItemsCount} {t('account.orders.items')}

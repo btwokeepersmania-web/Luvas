@@ -197,7 +197,7 @@
   "account.orders.timeline.placed": "Order placed",
   "account.orders.timeline.placedDescription": "We received your order and sent a confirmation email.",
   "account.orders.timeline.payment": "Payment processed",
-  "account.orders.timeline.paymentDescription": "We’re waiting for the payment confirmation.",
+  "account.orders.timeline.paymentDescription": "We're waiting for the payment confirmation.",
   "account.orders.timeline.fulfillment": "Preparing shipment",
   "account.orders.timeline.fulfillmentDescription": "Your products are being picked and packed.",
   "account.orders.timeline.delivered": "Delivered",

@@ -201,6 +201,7 @@
   "account.logout.success": "Você foi desconectado com sucesso.",
   "account.title": "Menu da Conta",
   "account.orders": "Pedidos",
+  "account.orders.refresh": "Atualizar",
   "account.orders.detailError": "Não foi possível carregar os detalhes do pedido.",
   "account.orders.loadingDetails": "Buscando as informações de rastreio...",
   "account.orders.timeline.title": "Linha do tempo do pedido",
