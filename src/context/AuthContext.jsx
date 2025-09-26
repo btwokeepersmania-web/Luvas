@@ -21,7 +21,8 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const { customerCreate, customerAccessTokenCreate, customerAccessTokenDelete, getCustomer } = useShopify();
-  const { clearCart, cartItems, note, replaceCart } = useCart();
+  const { cartItems, note, replaceCart } = useCart();
+  const prevSavedCartRef = useRef(null);
   const { t } = useTranslation();
   const adminApiEnabled = isAdminApiConfigured();
   const cartHydrated = useRef(false);
@@ -135,9 +136,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('customerData');
     setCustomer(null);
     setToken(null);
-    clearCart();
     toast({ title: t('account.logout.success') });
-  }, [token, clearCart, t, customerAccessTokenDelete]);
+  }, [token, t, customerAccessTokenDelete]);
 
   const fetchCustomerData = useCallback(
     async (accessToken) => {
@@ -249,15 +249,40 @@ export const AuthProvider = ({ children }) => {
     if (!customer?.id || !adminApiEnabled) {
       cartHydrated.current = false;
       hadRemoteCart.current = false;
+      prevSavedCartRef.current = null;
       return () => {};
     }
 
     const savedCart = customer.savedCart;
+    const savedCartFingerprint = savedCart ? JSON.stringify(savedCart) : null;
+    const fingerprintUnchanged = prevSavedCartRef.current === savedCartFingerprint;
+    if (!cartHydrated.current && fingerprintUnchanged) {
+      cartHydrated.current = true;
+      hadRemoteCart.current = false;
+      prevSavedCartRef.current = savedCartFingerprint;
+      return () => {
+        if (cartPersistTimeout.current) {
+          clearTimeout(cartPersistTimeout.current);
+          cartPersistTimeout.current = null;
+        }
+      };
+    }
+
+    if (fingerprintUnchanged) {
+      return () => {
+        if (cartPersistTimeout.current) {
+          clearTimeout(cartPersistTimeout.current);
+          cartPersistTimeout.current = null;
+        }
+      };
+    }
+    prevSavedCartRef.current = savedCartFingerprint;
+
     const normalizedItems = Array.isArray(savedCart?.items) ? savedCart.items : [];
     const normalizedNote = savedCart?.note || '';
     const remoteHasContent = normalizedItems.length > 0 || (normalizedNote && normalizedNote.trim());
 
-    if (savedCart && Array.isArray(savedCart.items) && remoteHasContent) {
+    if (remoteHasContent) {
       hadRemoteCart.current = true;
       const isSameItems = JSON.stringify(cartItems) === JSON.stringify(normalizedItems);
       const isSameNote = (note || '') === normalizedNote;
@@ -268,12 +293,8 @@ export const AuthProvider = ({ children }) => {
     } else {
       if (!cartHydrated.current) {
         cartHydrated.current = true;
-        hadRemoteCart.current = false;
-        replaceCart([], '');
-      } else if (hadRemoteCart.current && !remoteHasContent) {
-        replaceCart([], '');
-        hadRemoteCart.current = false;
       }
+      hadRemoteCart.current = false;
     }
 
     return () => {
@@ -282,7 +303,7 @@ export const AuthProvider = ({ children }) => {
         cartPersistTimeout.current = null;
       }
     };
-  }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart]);
+  }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart, cartItems, note]);
 
   useEffect(() => {
     if (!customer?.id || !adminApiEnabled || !cartHydrated.current) {
