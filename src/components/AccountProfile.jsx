@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext.jsx';
 import { useTranslation } from 'react-i18next';
+import { useCart } from '@/context/CartContext.jsx';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -46,6 +47,40 @@ const AccountProfile = () => {
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [lastRedeemResult, setLastRedeemResult] = useState(null);
 
+  const { getCartTotals, cartItems } = useCart();
+  const loyalty = customer?.loyalty;
+  const cartTotals = useMemo(() => getCartTotals(), [cartItems]);
+  const rawCartSubtotal = cartTotals?.totalPrice ?? 0;
+  const cartSubtotal = Number.isFinite(rawCartSubtotal) ? rawCartSubtotal : Number.parseFloat(rawCartSubtotal || 0);
+  const cartCurrencyRaw = cartTotals?.currency || loyalty?.currency || 'GBP';
+  const cartCurrency = typeof cartCurrencyRaw === 'string' ? cartCurrencyRaw.toUpperCase() : 'GBP';
+  const loyaltyCurrency = typeof loyalty?.currency === 'string' ? loyalty.currency.toUpperCase() : cartCurrency;
+  const currencyMismatch = Boolean(loyalty?.currency && cartSubtotal > 0 && loyaltyCurrency !== cartCurrency);
+  const defaultPercent = Number.parseFloat(import.meta.env.VITE_LOYALTY_MAX_DISCOUNT_PERCENT || '15');
+  const defaultPennyPerPoint = Number.parseFloat(import.meta.env.VITE_LOYALTY_PENNY_PER_POINT || '10');
+  const maxDiscountPercent = Number.isFinite(loyalty?.maxDiscountPercent) && loyalty.maxDiscountPercent > 0 ? loyalty.maxDiscountPercent : defaultPercent;
+  const pennyPerPoint = Number.isFinite(loyalty?.pennyPerPoint) && loyalty.pennyPerPoint > 0 ? loyalty.pennyPerPoint : defaultPennyPerPoint;
+  const maxPointsFromCart = useMemo(() => {
+    if (!loyalty) return null;
+    const available = Math.max(0, loyalty.availablePoints || 0);
+    if (available === 0) return 0;
+    if (currencyMismatch) return 0;
+    if (!Number.isFinite(cartSubtotal) || cartSubtotal <= 0) return 0;
+    if (!Number.isFinite(maxDiscountPercent) || maxDiscountPercent <= 0) return available;
+    if (!Number.isFinite(pennyPerPoint) || pennyPerPoint <= 0) return available;
+    const subtotalPennies = Math.round(cartSubtotal * 100);
+    const maxDiscountPennies = Math.floor((subtotalPennies * maxDiscountPercent) / 100);
+    const points = Math.floor(maxDiscountPennies / pennyPerPoint);
+    return Math.max(0, Math.min(available, points));
+  }, [loyalty, cartSubtotal, maxDiscountPercent, pennyPerPoint, currencyMismatch]);
+  const effectiveMaxPoints = useMemo(() => {
+    if (!loyalty) return 0;
+    const available = Math.max(0, loyalty.availablePoints || 0);
+    if (available === 0) return 0;
+    if (currencyMismatch) return 0;
+    return Math.max(0, Math.min(available, maxPointsFromCart));
+  }, [loyalty, maxPointsFromCart, currencyMismatch]);
+
   const tWithFallback = (key, fallback, options = {}) => {
     return t(key, { defaultValue: fallback, ...options });
   };
@@ -63,20 +98,18 @@ const AccountProfile = () => {
   }, [customer]);
 
   useEffect(() => {
-    if (customer?.loyalty?.availablePoints > 0) {
-      const maxPoints = Math.max(
-        customer.loyalty.maxRedeemablePoints || 0,
-        customer.loyalty.threshold || 0,
-      );
-      const initialPoints = maxPoints > 0
-        ? Math.min(maxPoints, customer.loyalty.availablePoints)
-        : customer.loyalty.availablePoints;
-      setRedeemPoints(String(initialPoints));
+    if (loyalty?.availablePoints > 0) {
+      const threshold = loyalty.threshold || 0;
+      const baseMax = effectiveMaxPoints > 0 ? effectiveMaxPoints : Math.max(0, loyalty.availablePoints || 0);
+      const initialPoints = threshold > 0
+        ? Math.max(threshold, Math.min(baseMax, loyalty.availablePoints))
+        : Math.min(baseMax, loyalty.availablePoints);
+      setRedeemPoints(initialPoints > 0 ? String(initialPoints) : '');
     } else {
       setRedeemPoints('');
     }
     setLastRedeemResult(null);
-  }, [customer?.loyalty?.availablePoints, customer?.loyalty?.maxRedeemablePoints, customer?.loyalty?.threshold]);
+  }, [loyalty?.availablePoints, loyalty?.threshold, effectiveMaxPoints, currencyMismatch]);
 
   // Handle input changes
   const handleInputChange = (field, value) => {
@@ -223,7 +256,16 @@ const AccountProfile = () => {
       return;
     }
 
-    if (!customer?.id || !customer?.loyalty) return;
+    if (!customer?.id || !loyalty) return;
+
+    if (currencyMismatch) {
+      toast({
+        title: tWithFallback('account.loyalty.currencyMismatchTitle', 'Currency not supported'),
+        description: tWithFallback('account.loyalty.currencyMismatchDescription', 'Please switch your cart currency to match your loyalty rewards.'),
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const points = Math.floor(Number(redeemPoints));
     if (!Number.isFinite(points) || points <= 0) {
@@ -235,7 +277,8 @@ const AccountProfile = () => {
       return;
     }
 
-    if (points > (customer.loyalty.availablePoints || 0)) {
+    const availablePoints = Math.max(0, loyalty.availablePoints || 0);
+    if (points > availablePoints) {
       toast({
         title: tWithFallback('account.loyalty.insufficientTitle', 'Not enough points'),
         description: tWithFallback('account.loyalty.insufficientDescription', 'You do not have enough points to redeem this amount.'),
@@ -244,31 +287,39 @@ const AccountProfile = () => {
       return;
     }
 
-    if ((customer.loyalty.threshold || 0) > 0 && points < customer.loyalty.threshold) {
+    const threshold = loyalty.threshold || 0;
+    if (threshold > 0 && points < threshold) {
       toast({
         title: tWithFallback('account.loyalty.thresholdTitle', 'Minimum redemption not reached'),
         description: tWithFallback(
           'account.loyalty.thresholdDescription',
-          `You need at least ${customer.loyalty.threshold} points to redeem a reward.`
+          `You need at least ${threshold} points to redeem a reward.`
         ),
         variant: 'destructive',
       });
       return;
     }
 
-    const maxRedeemablePoints = Math.max(0, customer.loyalty.maxRedeemablePoints || 0);
-    const maxPercent = Number.isFinite(customer.loyalty.maxDiscountPercent) && customer.loyalty.maxDiscountPercent > 0
-      ? customer.loyalty.maxDiscountPercent
-      : Number.parseFloat(import.meta.env.VITE_LOYALTY_MAX_DISCOUNT_PERCENT || '15');
-    const percentLabel = `${maxPercent}%`;
-    if (maxRedeemablePoints > 0 && points > maxRedeemablePoints) {
+    const maxForCart = effectiveMaxPoints > 0 ? effectiveMaxPoints : availablePoints;
+    const percentLabel = `${maxDiscountPercent}%`;
+
+    if (maxForCart <= 0) {
+      toast({
+        title: tWithFallback('account.loyalty.cartTooSmallTitle', 'Cart total too low'),
+        description: tWithFallback('account.loyalty.cartTooSmallDescription', 'Add more items to your cart to apply loyalty points.'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (points > maxForCart) {
       toast({
         title: tWithFallback('account.loyalty.maxLimitTitle', 'Redemption limit reached'),
         description: tWithFallback(
           'account.loyalty.maxLimitDescription',
           'You can redeem up to {{points}} points ({{percent}}) per purchase.',
           {
-            points: maxRedeemablePoints.toLocaleString(),
+            points: maxForCart.toLocaleString(),
             percent: percentLabel,
           }
         ),
@@ -279,7 +330,11 @@ const AccountProfile = () => {
 
     try {
       setRedeemLoading(true);
-      const response = await redeemCustomerPoints(customer.id, points);
+      const normalizedSubtotal = Number.isFinite(cartSubtotal) ? Number(cartSubtotal.toFixed(2)) : null;
+      const response = await redeemCustomerPoints(customer.id, points, {
+        cartSubtotal: normalizedSubtotal,
+        cartCurrency,
+      });
       setLastRedeemResult(response);
       toast({
         title: tWithFallback('account.loyalty.redeemSuccessTitle', 'Discount code ready!'),
@@ -321,19 +376,18 @@ const AccountProfile = () => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  const loyalty = customer?.loyalty;
-  const maxDiscountPercent = Number.isFinite(loyalty?.maxDiscountPercent) && loyalty.maxDiscountPercent > 0
-    ? loyalty.maxDiscountPercent
-    : Number.parseFloat(import.meta.env.VITE_LOYALTY_MAX_DISCOUNT_PERCENT || '15');
-  const percentLabel = `${maxDiscountPercent}%`;
-  const maxRedeemablePoints = Math.max(0, loyalty?.maxRedeemablePoints ?? 0);
-  const maxPointsPerRedemption = Math.max(maxRedeemablePoints, loyalty?.threshold || 0);
+    const percentLabel = `${maxDiscountPercent}%`;
+  const helperMaxPoints = effectiveMaxPoints > 0 ? effectiveMaxPoints : Math.max(0, loyalty?.availablePoints || 0);
+  const maxDiscountValueForCart = helperMaxPoints > 0 && Number.isFinite(pennyPerPoint)
+    ? Number(((helperMaxPoints * pennyPerPoint) / 100).toFixed(2))
+    : 0;
   const canRedeem = Boolean(
     isAdminApiConfigured() &&
       loyalty &&
       loyalty.availablePoints > 0 &&
-      (!loyalty.threshold || loyalty.availablePoints >= loyalty.threshold) &&
-      maxPointsPerRedemption > 0
+      (!loyalty.threshold || helperMaxPoints >= loyalty.threshold) &&
+      helperMaxPoints > 0 &&
+      !currencyMismatch
   );
 
   return (
@@ -648,7 +702,7 @@ const AccountProfile = () => {
                           'You can redeem up to {{percent}} of an order using points (maximum {{points}} points right now).',
                           {
                             percent: percentLabel,
-                            points: maxPointsPerRedemption > 0 ? maxPointsPerRedemption.toLocaleString() : '0',
+                            points: helperMaxPoints > 0 ? helperMaxPoints.toLocaleString() : '0',
                           }
                         )}
                       </li>
@@ -675,23 +729,60 @@ const AccountProfile = () => {
                         id="loyalty-points"
                         type="number"
                         min={loyalty.threshold || 1}
-                        max={maxPointsPerRedemption > 0 ? maxPointsPerRedemption : undefined}
+                        max={helperMaxPoints > 0 ? helperMaxPoints : undefined}
                         step={1}
                         value={redeemPoints}
                         onChange={(event) => setRedeemPoints(event.target.value)}
                         className="mt-1 bg-gray-900 border-gray-700 text-white"
-                        disabled={!isAdminApiConfigured() || redeemLoading}
+                        disabled={!isAdminApiConfigured() || redeemLoading || currencyMismatch}
                       />
-                      {maxPointsPerRedemption > 0 && (
-                        <p className="text-xs text-gray-400 mt-2">
+                      {currencyMismatch ? (
+                        <p className="text-xs text-red-400 mt-2">
                           {tWithFallback(
-                          'account.loyalty.maxLimitHelper',
-                          'Maximum per purchase: {{points}} points ({{percent}}).',
-                          {
-                            points: maxPointsPerRedemption.toLocaleString(),
-                            percent: percentLabel,
-                          }
-                        )}
+                            'account.loyalty.currencyMismatchDescription',
+                            'Please switch your cart currency to match your loyalty rewards.'
+                          )}
+                        </p>
+                      ) : helperMaxPoints > 0 ? (
+                        <div className="text-xs text-gray-400 mt-2 space-y-1">
+                          <p>
+                            {tWithFallback(
+                              'account.loyalty.maxLimitHelper',
+                              'Maximum per purchase: {{points}} points ({{percent}}).',
+                              {
+                                points: helperMaxPoints.toLocaleString(),
+                                percent: percentLabel,
+                              }
+                            )}
+                          </p>
+                          {maxDiscountValueForCart > 0 && (
+                            <p className="text-[11px] text-gray-500">
+                              {tWithFallback(
+                                'account.loyalty.maxLimitValueHelper',
+                                'Approx. {{currency}} {{value}} off this cart.',
+                                {
+                                  currency: loyalty?.currency || cartCurrency,
+                                  value: maxDiscountValueForCart.toFixed(2),
+                                }
+                              )}
+                            </p>
+                          )}
+                          {loyalty?.threshold && helperMaxPoints < (loyalty.threshold || 0) && (
+                            <p className="text-[11px] text-yellow-300">
+                              {tWithFallback(
+                                'account.loyalty.thresholdCartHelper',
+                                'Minimum redemption is {{points}} points. Add more items to unlock it.',
+                                { points: loyalty.threshold.toLocaleString() }
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-red-400 mt-2">
+                          {tWithFallback(
+                            'account.loyalty.cartTooSmallDescription',
+                            'Add more items to your cart to apply loyalty points.'
+                          )}
                         </p>
                       )}
                     </div>

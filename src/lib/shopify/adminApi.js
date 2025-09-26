@@ -99,8 +99,9 @@ export async function getOrderDetails(orderId) {
 /**
  * Redeem loyalty points into a discount code
  */
-export async function redeemCustomerPoints(customerId, points) {
-  return callAdmin('redeemCustomerPoints', { customerId, points });
+export async function redeemCustomerPoints(customerId, points, options = {}) {
+  const payload = { customerId, points, ...options };
+  return callAdmin('redeemCustomerPoints', payload);
 }
 
 /**

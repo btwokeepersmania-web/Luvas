@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }) => {
   const { t } = useTranslation();
   const adminApiEnabled = isAdminApiConfigured();
   const cartHydrated = useRef(false);
+  const hadRemoteCart = useRef(false);
   const cartPersistTimeout = useRef(null);
   const focusRefreshTimeout = useRef(null);
 
@@ -57,16 +58,10 @@ export const AuthProvider = ({ children }) => {
       const maxDiscountPercent = loyalty.maxDiscountPercent ?? data.maxDiscountPercent ?? Number.parseFloat(import.meta.env.VITE_LOYALTY_MAX_DISCOUNT_PERCENT || '15');
       const availablePoints = loyalty.availablePoints ?? Math.max(0, (data.totalPoints || 0) - (data.redeemedPoints || 0));
       let maxRedeemablePoints = loyalty.maxRedeemablePoints ?? data.maxRedeemablePoints;
-      if (!Number.isFinite(maxRedeemablePoints)) {
-        const cappedPercent = Math.max(0, Math.min(100, Number.isFinite(maxDiscountPercent) ? maxDiscountPercent : 15));
-        maxRedeemablePoints = cappedPercent > 0 ? Math.floor((availablePoints * cappedPercent) / 100) : availablePoints;
-      }
-      if (availablePoints > 0 && (!Number.isFinite(maxRedeemablePoints) || maxRedeemablePoints <= 0)) {
-        const cappedPercent = Math.max(0, Math.min(100, Number.isFinite(maxDiscountPercent) ? maxDiscountPercent : 15));
-        maxRedeemablePoints = cappedPercent > 0 ? Math.floor((availablePoints * cappedPercent) / 100) : availablePoints;
-      }
-      if (availablePoints > 0) {
-        maxRedeemablePoints = Math.max(1, Math.min(availablePoints, Number.isFinite(maxRedeemablePoints) ? maxRedeemablePoints : availablePoints));
+      if (!Number.isFinite(maxRedeemablePoints) || maxRedeemablePoints <= 0) {
+        maxRedeemablePoints = availablePoints;
+      } else if (availablePoints > 0) {
+        maxRedeemablePoints = Math.max(1, Math.min(availablePoints, Math.floor(maxRedeemablePoints)));
       } else {
         maxRedeemablePoints = 0;
       }
@@ -253,6 +248,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!customer?.id || !adminApiEnabled) {
       cartHydrated.current = false;
+      hadRemoteCart.current = false;
       return;
     }
 
@@ -261,15 +257,19 @@ export const AuthProvider = ({ children }) => {
     const normalizedNote = savedCart?.note || '';
 
     if (savedCart && Array.isArray(savedCart.items)) {
+      hadRemoteCart.current = true;
       const isSameItems = JSON.stringify(cartItems) === JSON.stringify(normalizedItems);
       const isSameNote = (note || '') === normalizedNote;
       if (!cartHydrated.current || !isSameItems || !isSameNote) {
         replaceCart(normalizedItems, normalizedNote);
       }
-    } else if (!savedCart && (cartItems.length > 0 || (note && note.trim()))) {
-      replaceCart([], '');
     } else if (!cartHydrated.current) {
       replaceCart([], '');
+    } else if (hadRemoteCart.current) {
+      if (cartItems.length > 0 || (note && note.trim())) {
+        replaceCart([], '');
+      }
+      hadRemoteCart.current = false;
     }
     cartHydrated.current = true;
 

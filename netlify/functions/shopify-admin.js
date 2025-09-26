@@ -198,6 +198,13 @@ const computeLoyaltyPointsFromOrders = (customer) => {
   return { totalPoints, totalSpent };
 };
 
+const toPennies = (value) => {
+  if (value === null || value === undefined) return null;
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.round(numeric * 100);
+};
+
 const calculateLoyaltySummary = (loyaltyData) => {
   const base = { ...DEFAULT_LOYALTY_STATE, ...(loyaltyData || {}) };
   base.totalPoints = Number.isFinite(base.totalPoints) ? Math.max(0, Math.floor(base.totalPoints)) : 0;
@@ -209,14 +216,7 @@ const calculateLoyaltySummary = (loyaltyData) => {
   const maxPercent = Number.isFinite(LOYALTY_MAX_DISCOUNT_PERCENT)
     ? Math.max(0, Math.min(100, LOYALTY_MAX_DISCOUNT_PERCENT))
     : 0;
-  let maxRedeemablePoints = availablePoints;
-  if (availablePoints > 0 && maxPercent > 0 && maxPercent < 100) {
-    maxRedeemablePoints = Math.max(1, Math.floor((availablePoints * maxPercent) / 100));
-    maxRedeemablePoints = Math.min(maxRedeemablePoints, availablePoints);
-  }
-  if (availablePoints === 0) {
-    maxRedeemablePoints = 0;
-  }
+  const maxRedeemablePoints = availablePoints;
 
   return {
     totalPoints: base.totalPoints,
@@ -778,7 +778,7 @@ async function getOrderDetails(orderId) {
   return data.order || null;
 }
 
-async function redeemCustomerPoints(customerId, pointsRequested) {
+async function redeemCustomerPoints(customerId, pointsRequested, options = {}) {
   if (!customerId) {
     throw new Error('customerId is required');
   }
@@ -787,6 +787,8 @@ async function redeemCustomerPoints(customerId, pointsRequested) {
   if (!Number.isFinite(pointsToRedeem) || pointsToRedeem <= 0) {
     throw new Error('Invalid points amount');
   }
+
+  const { cartSubtotal = null, cartCurrency = null } = options || {};
 
   const loyaltyThreshold = Math.max(0, LOYALTY_THRESHOLD_POINTS || 0);
   if (loyaltyThreshold > 0 && pointsToRedeem < loyaltyThreshold) {
@@ -805,16 +807,44 @@ async function redeemCustomerPoints(customerId, pointsRequested) {
     throw new Error('Insufficient loyalty points.');
   }
 
-  const maxRedeemablePoints = summary.maxRedeemablePoints ?? summary.availablePoints;
-  if (maxRedeemablePoints <= 0) {
-    throw new Error('No loyalty points can be redeemed at this time.');
+  const percentCap = Number.isFinite(summary.maxDiscountPercent) && summary.maxDiscountPercent > 0
+    ? summary.maxDiscountPercent
+    : Number.isFinite(LOYALTY_MAX_DISCOUNT_PERCENT) && LOYALTY_MAX_DISCOUNT_PERCENT > 0
+      ? LOYALTY_MAX_DISCOUNT_PERCENT
+      : 0;
+
+  let maxPointsAllowed = summary.availablePoints;
+  let cartPointsCap = null;
+  const subtotalPennies = toPennies(cartSubtotal);
+  if (subtotalPennies !== null && subtotalPennies > 0 && percentCap > 0) {
+    const effectiveCurrency = (cartCurrency || summary.currency || LOYALTY_CURRENCY || '').toString().toUpperCase();
+    if (effectiveCurrency && effectiveCurrency !== LOYALTY_CURRENCY) {
+      throw new Error(`Loyalty redemptions currently support ${LOYALTY_CURRENCY} carts only.`);
+    }
+    if (!Number.isFinite(LOYALTY_PENNY_PER_POINT) || LOYALTY_PENNY_PER_POINT <= 0) {
+      throw new Error('Loyalty configuration is invalid.');
+    }
+    const maxDiscountPennies = Math.floor((subtotalPennies * percentCap) / 100);
+    cartPointsCap = Math.floor(maxDiscountPennies / LOYALTY_PENNY_PER_POINT);
+    maxPointsAllowed = Math.min(maxPointsAllowed, cartPointsCap);
+  } else if (subtotalPennies !== null && subtotalPennies <= 0) {
+    maxPointsAllowed = 0;
+  } else if (Number.isFinite(summary.maxRedeemablePoints) && summary.maxRedeemablePoints > 0) {
+    maxPointsAllowed = Math.min(maxPointsAllowed, summary.maxRedeemablePoints);
   }
 
-  if (pointsToRedeem > maxRedeemablePoints) {
-    const percentMessage = Number.isFinite(summary.maxDiscountPercent) && summary.maxDiscountPercent > 0
-      ? `${summary.maxDiscountPercent}%`
-      : '15%';
-    throw new Error(`You can redeem at most ${maxRedeemablePoints} points (${percentMessage}) per order.`);
+  if (!Number.isFinite(maxPointsAllowed) || maxPointsAllowed <= 0) {
+    throw new Error('Your cart total is not high enough to apply loyalty points yet.');
+  }
+
+  if (loyaltyThreshold > 0 && maxPointsAllowed < loyaltyThreshold) {
+    const percentLabel = percentCap > 0 ? `${percentCap}%` : '15%';
+    throw new Error(`The current cart allows up to ${maxPointsAllowed} points (${percentLabel}), which is below the minimum redemption of ${loyaltyThreshold} points. Add more items to your cart and try again.`);
+  }
+
+  if (pointsToRedeem > maxPointsAllowed) {
+    const percentLabel = percentCap > 0 ? `${percentCap}%` : '15%';
+    throw new Error(`You can redeem up to ${maxPointsAllowed} points (${percentLabel}) with your current cart.`);
   }
 
   const discountValue = Number.parseFloat(((pointsToRedeem * LOYALTY_PENNY_PER_POINT) / 100).toFixed(2));
@@ -891,6 +921,8 @@ async function redeemCustomerPoints(customerId, pointsRequested) {
     discountValue,
     currency: LOYALTY_CURRENCY,
     loyalty: updatedSummary,
+    cartPointsCap,
+    maxPointsAllowed,
   };
 }
 
@@ -1018,11 +1050,11 @@ export const handler = async (event) => {
         break;
       }
       case 'redeemCustomerPoints': {
-        const { customerId, points } = payload;
+        const { customerId, points, cartSubtotal, cartCurrency } = payload;
         if (!customerId) {
           throw new Error('customerId is required');
         }
-        result = await redeemCustomerPoints(customerId, points);
+        result = await redeemCustomerPoints(customerId, points, { cartSubtotal, cartCurrency });
         break;
       }
       case 'getOrderDetails': {
