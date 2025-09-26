@@ -249,7 +249,7 @@ export const AuthProvider = ({ children }) => {
     if (!customer?.id || !adminApiEnabled) {
       cartHydrated.current = false;
       hadRemoteCart.current = false;
-      return;
+      return () => {};
     }
 
     const savedCart = customer.savedCart;
@@ -264,33 +264,16 @@ export const AuthProvider = ({ children }) => {
         replaceCart(normalizedItems, normalizedNote);
       }
       cartHydrated.current = true;
-      return () => {
-        if (cartPersistTimeout.current) {
-          clearTimeout(cartPersistTimeout.current);
-          cartPersistTimeout.current = null;
-        }
-      };
-    }
-
-    if (!cartHydrated.current) {
+    } else if (!cartHydrated.current) {
+      replaceCart([], '');
       cartHydrated.current = true;
       hadRemoteCart.current = false;
-      return () => {
-        if (cartPersistTimeout.current) {
-          clearTimeout(cartPersistTimeout.current);
-          cartPersistTimeout.current = null;
-        }
-      };
-    }
-
-    if (hadRemoteCart.current) {
+    } else if (hadRemoteCart.current) {
       if (cartItems.length > 0 || (note && note.trim())) {
         replaceCart([], '');
       }
       hadRemoteCart.current = false;
     }
-
-    cartHydrated.current = true;
 
     return () => {
       if (cartPersistTimeout.current) {
@@ -298,7 +281,7 @@ export const AuthProvider = ({ children }) => {
         cartPersistTimeout.current = null;
       }
     };
-  }, [customer?.id, customer?.savedCart, adminApiEnabled, cartItems, note, replaceCart]);
+  }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart]);
 
   useEffect(() => {
     if (!customer?.id || !adminApiEnabled || !cartHydrated.current) {
