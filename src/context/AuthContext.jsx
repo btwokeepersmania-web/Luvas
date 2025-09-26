@@ -255,8 +255,9 @@ export const AuthProvider = ({ children }) => {
     const savedCart = customer.savedCart;
     const normalizedItems = Array.isArray(savedCart?.items) ? savedCart.items : [];
     const normalizedNote = savedCart?.note || '';
+    const remoteHasContent = normalizedItems.length > 0 || (normalizedNote && normalizedNote.trim());
 
-    if (savedCart && Array.isArray(savedCart.items)) {
+    if (savedCart && Array.isArray(savedCart.items) && remoteHasContent) {
       hadRemoteCart.current = true;
       const isSameItems = JSON.stringify(cartItems) === JSON.stringify(normalizedItems);
       const isSameNote = (note || '') === normalizedNote;
@@ -268,7 +269,8 @@ export const AuthProvider = ({ children }) => {
       if (!cartHydrated.current) {
         cartHydrated.current = true;
         hadRemoteCart.current = false;
-      } else if (hadRemoteCart.current) {
+        replaceCart([], '');
+      } else if (hadRemoteCart.current && !remoteHasContent) {
         replaceCart([], '');
         hadRemoteCart.current = false;
       }
@@ -280,7 +282,7 @@ export const AuthProvider = ({ children }) => {
         cartPersistTimeout.current = null;
       }
     };
-  }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart, cartItems, note]);
+  }, [customer?.id, customer?.savedCart, adminApiEnabled, replaceCart]);
 
   useEffect(() => {
     if (!customer?.id || !adminApiEnabled || !cartHydrated.current) {
