@@ -28,9 +28,9 @@
   "product.stockCount": "{{count}} em estoque",
   "product.remainingStock": "Restam {{count}} unidade(s)",
   "product.noMoreStock": "Sem estoque adicional disponível",
-  "hero.title.line1": "Defenda como um",
-  "hero.title.line2": "Profissional",
-  "hero.subtitle": "Descubra as melhores luvas de goleiro para elevar sua performance ao próximo nível.",
+  "hero.title.line1": "Liberte seu goleiro interior",
+  "hero.title.line2": "com o poder da selva.",
+  "hero.subtitle": "🧤 Até 20% OFF na coleção AMAZON — Mico. Aqua. Fauna. Tempo limitado. Desempenho lendário.",
   "hero.shopNow": "Compre Agora",
   "collections.title": "Nossas Coleções",
   "collections.subtitle": "Explore nossas coleções especializadas para cada tipo de goleiro.",
@@ -290,5 +290,6 @@
   "care.step7.title": "7. Umedeça antes de jogar",
   "care.step7.text": "Enxágue luvas Aqua com água morna (preferencialmente entre 35–40º) 1–2 horas antes do uso para ativar Hydrograins™. Umedeça todos os tipos de luvas de goleiro antes de jogar e mantenha-as ligeiramente úmidas durante o uso.",
   "care.backToShop": "Voltar à loja",
-  "care.learnMore": "Ler"
+  "care.learnMore": "Ler",
+  "hero.backgroundAlt": "Fundo da coleção Amazon com oferta de Black Friday na selva"
 }

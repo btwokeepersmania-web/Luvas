@@ -10,23 +10,15 @@ const Hero = () => {
   return (
     <section className="relative h-screen flex items-center justify-center text-center text-white overflow-hidden">
       <div className="absolute inset-0 z-0">
-        {/*
-          This is the correct approach. Your code was right from the beginning.
-          The `object-cover` property makes the video fill the container.
-          The motion of the video will make it look professional, even with some cropping.
-        */}
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          className="w-full h-full object-cover hero-video"
-          poster={import.meta.env.VITE_HERO_POSTER_URL || undefined}
-        >
-          <source src="/Videos/final.mp4" type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-gray-950/50 hero-shadow"></div>
+        <div className="w-full h-full bg-black flex items-center justify-center">
+          <img
+            src={import.meta.env.VITE_HERO_IMAGE_URL || '/hero/bgimg.jpeg'}
+            alt={t('hero.backgroundAlt')}
+            className="max-w-full max-h-full object-contain"
+            loading="eager"
+          />
+        </div>
+        <div className="absolute inset-0 bg-gray-950/60 hero-shadow"></div>
       </div>
 
       <div className="relative z-20 container mx-auto px-4">

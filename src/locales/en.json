@@ -28,9 +28,9 @@
   "product.stockCount": "{{count}} in stock",
   "product.remainingStock": "{{count}} item(s) left",
   "product.noMoreStock": "No additional stock available",
-  "hero.title.line1": "Defend like a",
-  "hero.title.line2": "Professional",
-  "hero.subtitle": "Discover the best goalkeeper gloves to elevate your performance to the next level.",
+  "hero.title.line1": "Unleash your inner keeper",
+  "hero.title.line2": "with the power of the jungle.",
+  "hero.subtitle": "🧤 Up to 20% OFF the AMAZON Collection — Mico. Aqua. Fauna. Limited time. Legendary performance.",
   "hero.shopNow": "Shop Now",
   "collections.title": "Our Collections",
   "collections.subtitle": "Explore our specialized collections for every type of goalkeeper.",
@@ -189,7 +189,6 @@
   "auth.callback.redirecting": "Redirecting you to the login page...",
   "account.myAccount": "My Account",
   "account.noOrdersDescription": "Start shopping to see your orders here.",
-
   "account.orders.refresh": "Refresh",
   "account.orders.detailError": "Unable to load order details.",
   "account.orders.loadingDetails": "Fetching the latest tracking data...",
@@ -235,7 +234,6 @@
   "account.orders.status.processing": "Processing",
   "account.orders.status.pending": "Pending Payment",
   "account.orders.status.unknown": "Unknown",
-
   "account.addresses.title": "Addresses",
   "account.addresses.addNew": "Add New Address",
   "account.addresses.addNewAddress": "Add New Address",
@@ -284,7 +282,6 @@
   "account.addresses.deleteError": "Failed to Delete",
   "account.addresses.defaultError": "Failed to Set Default",
   "account.addresses.fetchError": "Failed to Load Addresses",
-
   "account.profile.title": "Profile Details",
   "account.profile.edit": "Edit Profile",
   "account.profile.save": "Save Changes",
@@ -405,5 +402,6 @@
   "care.step7.title": "7. Moisten before playing",
   "care.step7.text": "Rinse Aqua gloves with warm water (preferably 35–40º) 1–2 hours before using to activate Hydrograins™. Moisten all types of goalkeeper gloves before playing and keep them slightly wet during use.",
   "care.backToShop": "Back to shop",
-  "care.learnMore": "Read"
+  "care.learnMore": "Read",
+  "hero.backgroundAlt": "Amazon Collection jungle background with Black Friday offer"
 }
