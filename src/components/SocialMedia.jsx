@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-
-const ELFSIGHT_SCRIPT_SRC = 'https://elfsightcdn.com/platform.js';
-const isBrowser = typeof window !== 'undefined';
+import { loadElfsightPlatform } from '@/lib/elfsight.js';
 
 const SocialMedia = () => {
   const { t } = useTranslation();
@@ -36,26 +34,17 @@ const SocialMedia = () => {
   }, [elfsightEnabled]);
 
   useEffect(() => {
-    if (!isBrowser || !shouldLoadWidget || !elfsightEnabled) return;
+    if (!shouldLoadWidget || !elfsightEnabled) return undefined;
 
-    const alreadyLoaded = document.querySelector(`script[src="${ELFSIGHT_SCRIPT_SRC}"]`);
-    if (alreadyLoaded) return;
-
-    const script = document.createElement('script');
-    script.src = ELFSIGHT_SCRIPT_SRC;
-    script.async = true;
-    script.onerror = (error) => {
-      console.warn('Failed to load Elfsight script', error);
-      if (containerRef.current) {
+    let cancelled = false;
+    loadElfsightPlatform().catch(() => {
+      if (!cancelled && containerRef.current) {
         containerRef.current.style.display = 'none';
       }
-    };
-
-    document.body.appendChild(script);
+    });
 
     return () => {
-      script.onload = null;
-      script.onerror = null;
+      cancelled = true;
     };
   }, [shouldLoadWidget, elfsightEnabled]);
 
