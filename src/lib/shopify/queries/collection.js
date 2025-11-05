@@ -18,6 +18,10 @@ export const fetchCollections = async (fetcher) => {
             title
             handle
             description
+            seo {
+              title
+              description
+            }
             image { url altText }
           }
         }
@@ -38,6 +42,10 @@ export const fetchCollectionByHandle = async (fetcher, handle) => {
         title
         description
         handle
+        seo {
+          title
+          description
+        }
         image { url altText }
       }
     }
@@ -58,6 +66,10 @@ export const fetchCollectionProducts = async (fetcher, collectionId) => {
               title
               handle
               description
+              seo {
+                title
+                description
+              }
               productType
               images(first: 5) { edges { node { url altText } } }
               options { name values }

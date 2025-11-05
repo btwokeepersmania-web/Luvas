@@ -10,6 +10,12 @@ export const formatProduct = (node) => ({
   handle: node.handle,
   description: node.description,
   descriptionHtml: node.descriptionHtml,
+  seo: {
+    title: node.seo?.title ?? null,
+    description: node.seo?.description ?? null,
+  },
+  seoTitle: node.seo?.title ?? null,
+  seoDescription: node.seo?.description ?? null,
   productType: node.productType,
   metafields: node.metafields,
   images: Array.isArray(node.images?.edges)
@@ -48,6 +54,12 @@ export const formatProducts = (edges) => {
     title: node.title,
     handle: node.handle,
     description: node.description,
+    seo: {
+      title: node.seo?.title ?? null,
+      description: node.seo?.description ?? null,
+    },
+    seoTitle: node.seo?.title ?? null,
+    seoDescription: node.seo?.description ?? null,
     productType: node.productType,
     images: Array.isArray(node.images?.edges)
       ? node.images.edges.map(({ node: imageNode }) => ({
@@ -84,6 +96,12 @@ export const formatCollection = (node) => ({
     title: node.title,
     handle: node.handle,
     description: node.description,
+    seo: {
+      title: node.seo?.title ?? null,
+      description: node.seo?.description ?? null,
+    },
+    seoTitle: node.seo?.title ?? null,
+    seoDescription: node.seo?.description ?? null,
     image: node.image,
 });
 

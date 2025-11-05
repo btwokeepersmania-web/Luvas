@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button.jsx';
 import { Input } from '@/components/ui/input.jsx';
 import { Loader2, ShoppingCart, ChevronLeft, ChevronRight, Minus, Plus, X } from 'lucide-react';
 import { Helmet } from 'react-helmet';
+import { buildMetaDescription, buildPageTitle } from '@/lib/seo.js';
 import { cn } from '@/lib/utils.js';
 import { useTranslation } from 'react-i18next';
 import YouMayAlsoLike from '@/components/YouMayAlsoLike.jsx';
@@ -33,7 +34,7 @@ const useVariantStockCheck = () => {
 
 const ProductPage = () => {
   const { handle } = useParams();
-  const { fetchProductByHandle } = useShopify();
+  const { fetchProductByHandle, shopInfo } = useShopify();
   const { addToCart, findCartItem, updateQuantity, cartItems } = useCart();
   const { formatPrice, country, language } = useLocalization();
   const { t } = useTranslation();
@@ -97,6 +98,7 @@ const ProductPage = () => {
   const images = product?.images ?? [];
   const options = product?.options ?? [];
   const variants = product?.variants ?? [];
+  const siteName = shopInfo?.name || 'B2 Goalkeeping';
 
   useEffect(() => {
     if (!images.length) return undefined;
@@ -498,15 +500,26 @@ const ProductPage = () => {
   const hasImages = images.length > 0;
   const currentImage = hasImages ? images[Math.min(selectedImageIndex, images.length - 1)] : null;
   const currentImageUrl = currentImage?.url;
+  const primaryTitle = product?.seoTitle || product?.seo?.title || product?.title;
+  const pageTitle = buildPageTitle(primaryTitle || product.title, siteName);
+  const fallbackDescription = product?.title ? `${product.title} goalkeeper gear available at ${siteName}.` : siteName;
+  const metaDescription = buildMetaDescription(
+    product?.seoDescription,
+    product?.seo?.description,
+    product?.description,
+    product?.descriptionHtml,
+    fallbackDescription
+  );
+  const ogImage = currentImage?.url;
 
   return (
     <>
       <Helmet>
-        <title>{`${product.title} - B2 Goalkeeping`}</title>
-        <meta name="description" content={product.description} />
-        <meta property="og:title" content={`${product.title} - B2 Goalkeeping`} />
-        <meta property="og:description" content={product.description} />
-        <meta property="og:image" content={currentImage?.url} />
+        <title>{pageTitle}</title>
+        {metaDescription && <meta name="description" content={metaDescription} />}
+        <meta property="og:title" content={pageTitle} />
+        {metaDescription && <meta property="og:description" content={metaDescription} />}
+        {ogImage && <meta property="og:image" content={ogImage} />}
       </Helmet>
       <div className="container mx-auto px-4 pt-32 pb-20">
         <motion.div

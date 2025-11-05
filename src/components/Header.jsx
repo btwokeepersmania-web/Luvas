@@ -185,21 +185,23 @@ const Header = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => navigate('/account/login')}
-                  className="text-white hover:text-yellow-400 hover:bg-yellow-500/10"
-                >
-                  <User className="h-6 w-6" />
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/account/login')}
+                aria-label={t('auth.login.title')}
+                className="text-white hover:text-yellow-400 hover:bg-yellow-500/10"
+              >
+                <User className="h-6 w-6" />
+              </Button>
+            )}
 
               <Button
                 id="site-cart-button"
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsCartOpen(true)}
+                aria-label={t('header.accessibility.openCart')}
                 className="relative text-white hover:text-yellow-400 hover:bg-yellow-500/10"
               >
                 <ShoppingCart className="h-6 w-6" />
@@ -214,6 +216,7 @@ const Header = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
+                aria-label={isMenuOpen ? t('header.accessibility.closeMenu') : t('header.accessibility.openMenu')}
                 className="md:hidden text-white hover:text-yellow-400 hover:bg-yellow-500/10"
               >
                 {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}

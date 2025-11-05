@@ -6,15 +6,17 @@ import { Button } from '@/components/ui/button.jsx';
 import { Loader2 } from 'lucide-react';
 import { Helmet } from 'react-helmet';
 import { useTranslation } from 'react-i18next';
+import { buildMetaDescription, buildPageTitle } from '@/lib/seo.js';
 
 const PolicyPage = () => {
   const { handle } = useParams();
-  const { fetchPolicy } = useShopify();
+  const { fetchPolicy, shopInfo } = useShopify();
   const [policy, setPolicy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const siteName = shopInfo?.name || 'B2 Goalkeeping';
 
   useEffect(() => {
     const getPolicyData = async () => {
@@ -59,11 +61,17 @@ const PolicyPage = () => {
   }
 
   if (!policy) return null;
+  const pageTitle = buildPageTitle(policy.title, siteName);
+  const fallbackDescription = t('policy.metaFallback', { title: policy.title, shopName: siteName });
+  const metaDescription = buildMetaDescription(policy.body, fallbackDescription);
 
   return (
     <>
       <Helmet>
-        <title>{`${policy.title} - B2 Goalkeeping`}</title>
+        <title>{pageTitle}</title>
+        {metaDescription && <meta name="description" content={metaDescription} />}
+        <meta property="og:title" content={pageTitle} />
+        {metaDescription && <meta property="og:description" content={metaDescription} />}
       </Helmet>
       <div className="pt-32 pb-20 bg-black">
         <div className="container mx-auto px-4">

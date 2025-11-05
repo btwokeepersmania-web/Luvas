@@ -42,7 +42,7 @@ const CareInstructionsPage = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-white py-20 px-4">
       <Helmet>
-        <title>{t('care.title')} - B2 Goalkeeping</title>
+        <title>{t('care.title')} B2 Goalkeeping</title>
       </Helmet>
 
       <div className="max-w-4xl mx-auto">
@@ -56,7 +56,7 @@ const CareInstructionsPage = () => {
         <div className="bg-gray-900 rounded-lg p-6 mb-8">
           <h3 className="font-semibold text-xl mb-2">{t('care.videoTitle')}</h3>
           <p className="text-gray-400 mb-4">{t('care.videoDescription')}</p>
-          <div className="aspect-video bg-black/60 rounded-md flex items-center justify-center text-gray-400">Video placeholder — embed your video here</div>
+          <div className="aspect-video bg-black/60 rounded-md flex items-center justify-center text-gray-400">Video</div>
         </div>
 
         <div className="mb-8">

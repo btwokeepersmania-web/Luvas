@@ -7,16 +7,18 @@ import ProductCard from '@/components/ProductCard.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Loader2 } from 'lucide-react';
 import { Helmet } from 'react-helmet';
+import { buildMetaDescription, buildPageTitle } from '@/lib/seo.js';
 
 const CollectionPage = () => {
   const { handle } = useParams();
-  const { fetchCollectionByHandle, fetchCollectionProducts, loading: shopifyLoading } = useShopify();
+  const { fetchCollectionByHandle, fetchCollectionProducts, loading: shopifyLoading, shopInfo } = useShopify();
   const { t } = useTranslation();
   const [collection, setCollection] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [highlighted, setHighlighted] = useState(false);
+  const siteName = shopInfo?.name || 'B2 Goalkeeping';
 
   // Highlight hero image shortly after load to draw attention
   useEffect(() => {
@@ -63,6 +65,13 @@ const CollectionPage = () => {
 
   const imageUrl = collection?.image?.url || 'https://source.unsplash.com/random/1600x900?soccer,goalkeeper';
   const imageAlt = collection?.image?.altText || collection?.title;
+  const metaTitle = buildPageTitle(collection?.seoTitle || collection?.title, siteName);
+  const fallbackDescription = collection?.title ? `${collection.title} collection from ${siteName}.` : t('collections.subtitle');
+  const metaDescription = buildMetaDescription(
+    collection?.seoDescription,
+    collection?.description,
+    fallbackDescription
+  );
 
   if (loading) {
     return (
@@ -88,11 +97,11 @@ const CollectionPage = () => {
   return (
     <>
       <Helmet>
-        <title>{`${collection.title} - B2 Goalkeeping`}</title>
-        <meta name="description" content={collection.description} />
-        <meta property="og:title" content={`${collection.title} - B2 Goalkeeping`} />
-        <meta property="og:description" content={collection.description} />
-        <meta property="og:image" content={imageUrl} />
+        <title>{metaTitle}</title>
+        {metaDescription && <meta name="description" content={metaDescription} />}
+        <meta property="og:title" content={metaTitle} />
+        {metaDescription && <meta property="og:description" content={metaDescription} />}
+        {imageUrl && <meta property="og:image" content={imageUrl} />}
       </Helmet>
       <div className="pt-24 pb-20 bg-gray-950">
         <div className="relative h-64 md:h-96 flex items-center justify-center text-center overflow-hidden">

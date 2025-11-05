@@ -18,6 +18,10 @@ export const fetchProducts = async (fetcher) => {
             title
             handle
             description
+            seo {
+              title
+              description
+            }
             productType
             images(first: 6) {
               edges {
@@ -62,6 +66,10 @@ export const fetchProductByHandle = async (fetcher, handle) => {
         handle
         description
         descriptionHtml
+        seo {
+          title
+          description
+        }
         productType
         metafields(identifiers: [{namespace: "optionize", key: "product_options"}]) {
           key
