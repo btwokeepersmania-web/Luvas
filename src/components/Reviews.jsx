@@ -232,7 +232,8 @@ useEffect(() => {
   };
 
   const handleResume = () => {
-    scheduleResume();
+    clearPauseTimeout();
+    setIsPaused(false);
   };
 
   return (
@@ -277,26 +278,27 @@ useEffect(() => {
                     ? { duration: 0 }
                     : { duration: 0.8, ease: 'easeInOut' }
                 }
-                style={{ gap: '1.25rem' }}
               >
                 {slides.map((review, idx) => (
                   <div
                     key={`${review.id}-${idx}`}
-                    className="relative flex h-full flex-col rounded-2xl border border-yellow-500/20 bg-gray-900/70 p-5 shadow-[0_0_20px_rgba(234,179,8,0.05)] transition-transform hover:-translate-y-1 hover:border-yellow-500/40"
                     style={{ flex: `0 0 ${100 / visibleCount}%` }}
+                    className="px-2 sm:px-3"
                   >
-                    <div className="flex items-center gap-1 mb-3">
-                      {Array.from({ length: 5 }).map((_, starIdx) => (
-                        <Star key={starIdx} className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-200 leading-relaxed flex-1">
-                      “{review.text}”
-                    </p>
-                    <div className="mt-4 pt-3 border-t border-yellow-500/10 text-xs text-gray-400">
-                      <p className="font-semibold text-white text-sm">{review.name}</p>
-                      <p>{review.date}</p>
-                      <p className="italic">{review.source}</p>
+                    <div className="relative flex h-full flex-col rounded-2xl border border-yellow-500/20 bg-gray-900/70 p-5 shadow-[0_0_20px_rgba(234,179,8,0.05)] transition-transform hover:-translate-y-1 hover:border-yellow-500/40">
+                      <div className="flex items-center gap-1 mb-3">
+                        {Array.from({ length: 5 }).map((_, starIdx) => (
+                          <Star key={starIdx} className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                        ))}
+                      </div>
+                      <p className="text-sm text-gray-200 leading-relaxed flex-1">
+                        “{review.text}”
+                      </p>
+                      <div className="mt-4 pt-3 border-t border-yellow-500/10 text-xs text-gray-400">
+                        <p className="font-semibold text-white text-sm">{review.name}</p>
+                        <p>{review.date}</p>
+                        <p className="italic">{review.source}</p>
+                      </div>
                     </div>
                   </div>
                 ))}

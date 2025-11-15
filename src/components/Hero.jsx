@@ -9,19 +9,17 @@ const Hero = () => {
 
   return (
     <section className="relative h-screen flex items-center justify-center text-center text-white overflow-hidden">
-      <div className="absolute inset-0 z-0">
-        <div className="w-full h-full bg-black flex items-center justify-center">
-          <img
-            src={import.meta.env.VITE_HERO_IMAGE_URL || '/hero/bgimg.jpeg'}
-            alt={t('hero.backgroundAlt')}
-            className="max-w-full max-h-full object-contain"
-            loading="eager"
-          />
-        </div>
-        <div className="absolute inset-0 bg-gray-950/60 hero-shadow"></div>
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <img
+          src={import.meta.env.VITE_HERO_IMAGE_URL || '/hero/b2friday.jpeg'}
+          alt={t('hero.backgroundAlt')}
+          className="w-full h-full object-cover object-[center_-90%] scale-110"
+          loading="eager"
+        />
+        <div className="absolute inset-0 bg-gray-950/60 hero-shadow" />
       </div>
 
-      <div className="relative z-20 container mx-auto px-4">
+      <div className="relative z-10 container mx-auto px-4">
         <motion.h1
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
