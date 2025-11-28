@@ -19,6 +19,12 @@ if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
   }
 }
 
+// EmailJS configuration
+const EMAILJS_SERVICE_ID = process.env.VITE_EMAILJS_SERVICE_ID;
+const EMAILJS_TEMPLATE_ID = process.env.VITE_EMAILJS_TEMPLATE_ID;
+const EMAILJS_OTP_TEMPLATE_ID = process.env.VITE_EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID;
+const EMAILJS_PUBLIC_KEY = process.env.VITE_EMAILJS_PUBLIC_KEY;
+
 // Email transporter configuration
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -157,6 +163,43 @@ const sendVerificationEmail = async (email, code, customerName) => {
     return;
   }
 
+  // Try EmailJS if configured
+  const emailJsTemplate = EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID;
+
+  if (EMAILJS_SERVICE_ID && emailJsTemplate && EMAILJS_PUBLIC_KEY) {
+    const subject = 'Verification Code';
+    const message = `Your verification code is ${code}. It expires in 10 minutes. If you did not request this, please ignore this email.`;
+    const payload = {
+      service_id: EMAILJS_SERVICE_ID,
+      template_id: emailJsTemplate,
+      user_id: EMAILJS_PUBLIC_KEY,
+      template_params: {
+        to_email: email,
+        to_name: customerName || 'Customer',
+        user_email: email,
+        user_name: customerName || 'Customer',
+        subject,
+        message,
+        verification_code: code,
+        code,
+        customer_name: customerName || '',
+      },
+    };
+
+    const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`EmailJS send failed: ${res.status} ${errText}`);
+    }
+
+    return;
+  }
+
   // Fallback to SMTP nodemailer
   const transporter = createTransporter();
 
@@ -287,7 +330,11 @@ exports.handler = async (event, context) => {
 
         // Send email (only if an email service is configured)
         let emailSent = false;
-        if (process.env.SENDGRID_API_KEY || (process.env.EMAIL_USER && process.env.EMAIL_PASS)) {
+        const hasEmailJs = EMAILJS_SERVICE_ID && (EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID) && EMAILJS_PUBLIC_KEY;
+        const hasSendGrid = process.env.SENDGRID_API_KEY && (process.env.EMAIL_FROM || process.env.EMAIL_USER);
+        const hasSmtp = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+
+        if (hasEmailJs || hasSendGrid || hasSmtp) {
           try {
             await sendVerificationEmail(email, verificationCode, customer.firstName);
             emailSent = true;
