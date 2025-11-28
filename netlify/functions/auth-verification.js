@@ -334,6 +334,17 @@ exports.handler = async (event, context) => {
         const hasSendGrid = process.env.SENDGRID_API_KEY && (process.env.EMAIL_FROM || process.env.EMAIL_USER);
         const hasSmtp = process.env.EMAIL_USER && process.env.EMAIL_PASS;
 
+        console.log('auth-verification provider flags', {
+          hasEmailJs,
+          hasSendGrid,
+          hasSmtp,
+          emailJsService: !!EMAILJS_SERVICE_ID,
+          emailJsTemplate: !!(EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID),
+          emailJsKey: !!EMAILJS_PUBLIC_KEY,
+          hasFromEmail: !!process.env.EMAIL_FROM,
+          hasEmailUser: !!process.env.EMAIL_USER,
+        });
+
         if (hasEmailJs || hasSendGrid || hasSmtp) {
           try {
             await sendVerificationEmail(email, verificationCode, customer.firstName);
@@ -342,6 +353,8 @@ exports.handler = async (event, context) => {
             console.error('Failed to send verification email:', err && err.message ? err.message : err);
             // do not throw — return success with emailSent=false
           }
+        } else {
+          console.warn('auth-verification: no email provider configured');
         }
 
         return {
@@ -351,6 +364,7 @@ exports.handler = async (event, context) => {
             success: true,
             message: 'Verification code generated',
             emailSent,
+            providerConfigured: hasEmailJs || hasSendGrid || hasSmtp,
             ...(process.env.NODE_ENV === 'development' && { code: verificationCode })
           })
         };
