@@ -24,6 +24,7 @@ const EMAILJS_SERVICE_ID = process.env.VITE_EMAILJS_SERVICE_ID;
 const EMAILJS_TEMPLATE_ID = process.env.VITE_EMAILJS_TEMPLATE_ID;
 const EMAILJS_OTP_TEMPLATE_ID = process.env.VITE_EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID;
 const EMAILJS_PUBLIC_KEY = process.env.VITE_EMAILJS_PUBLIC_KEY;
+const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY || process.env.VITE_EMAILJS_PRIVATE_KEY;
 
 // Email transporter configuration
 const createTransporter = () => {
@@ -186,9 +187,14 @@ const sendVerificationEmail = async (email, code, customerName) => {
       },
     };
 
+    const emailJsHeaders = { 'Content-Type': 'application/json' };
+    if (EMAILJS_PRIVATE_KEY) {
+      emailJsHeaders.Authorization = `Bearer ${EMAILJS_PRIVATE_KEY}`;
+    }
+
     const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: emailJsHeaders,
       body: JSON.stringify(payload),
     });
 
@@ -330,9 +336,9 @@ exports.handler = async (event, context) => {
 
         // Send email (only if an email service is configured)
         let emailSent = false;
-        const hasEmailJs = EMAILJS_SERVICE_ID && (EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID) && EMAILJS_PUBLIC_KEY;
-        const hasSendGrid = process.env.SENDGRID_API_KEY && (process.env.EMAIL_FROM || process.env.EMAIL_USER);
-        const hasSmtp = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+        const hasEmailJs = Boolean(EMAILJS_SERVICE_ID && (EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID) && EMAILJS_PUBLIC_KEY);
+        const hasSendGrid = Boolean(process.env.SENDGRID_API_KEY && (process.env.EMAIL_FROM || process.env.EMAIL_USER));
+        const hasSmtp = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
         console.log('auth-verification provider flags', {
           hasEmailJs,
