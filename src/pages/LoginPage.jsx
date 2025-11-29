@@ -23,7 +23,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const forceHostedLogin = import.meta.env.VITE_SHOPIFY_HOSTED_LOGIN_ONLY === 'true';
+  const showShopifyLogin = false; // temporarily disable quick/shopify login
 
   const from = location.state?.from?.pathname || '/account';
 
@@ -121,15 +121,17 @@ const LoginPage = () => {
           </div>
 
           <Tabs defaultValue="inapp" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-gray-800/50">
+            <TabsList className={`grid w-full ${showShopifyLogin ? 'grid-cols-2' : 'grid-cols-1'} bg-gray-800/50`}>
               <TabsTrigger value="inapp" className="flex items-center space-x-2">
                 <Shield className="h-4 w-4" />
                 <span>Secure Login</span>
               </TabsTrigger>
-              <TabsTrigger value="shopify" className="flex items-center space-x-2">
-                <ExternalLink className="h-4 w-4" />
-                <span>Quick Login</span>
-              </TabsTrigger>
+              {showShopifyLogin && (
+                <TabsTrigger value="shopify" className="flex items-center space-x-2">
+                  <ExternalLink className="h-4 w-4" />
+                  <span>Quick Login</span>
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="inapp" className="space-y-4 mt-6">
@@ -148,58 +150,60 @@ const LoginPage = () => {
               <InAppLogin />
             </TabsContent>
 
-            <TabsContent value="shopify" className="space-y-4 mt-6">
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
-                <div className="flex items-start space-x-3">
-                  <ExternalLink className="h-5 w-5 text-yellow-400 mt-0.5" />
-                  <div>
-                    <h3 className="text-yellow-400 font-medium text-sm">Quick Access</h3>
-                    <p className="text-gray-300 text-xs mt-1">
-                      Use Google, Facebook, or email/password via Shopify
-                    </p>
+            {showShopifyLogin && (
+              <TabsContent value="shopify" className="space-y-4 mt-6">
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-6">
+                  <div className="flex items-start space-x-3">
+                    <ExternalLink className="h-5 w-5 text-yellow-400 mt-0.5" />
+                    <div>
+                      <h3 className="text-yellow-400 font-medium text-sm">Quick Access</h3>
+                      <p className="text-gray-300 text-xs mt-1">
+                        Use Google, Facebook, or email/password via Shopify
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-4">
-                {isCustomerAuthConfigured() ? (
-                  <>
-                    <Button
-                      onClick={handleSecureLogin}
-                      className="w-full bg-green-500 hover:bg-green-600 text-black font-bold text-lg py-6"
-                    >
-                      {t('auth.login.secureLoginButton') || 'Login with Customer Account API'}
-                      <LogIn className="ml-2 h-5 w-5" />
-                    </Button>
+                <div className="space-y-4">
+                  {isCustomerAuthConfigured() ? (
+                    <>
+                      <Button
+                        onClick={handleSecureLogin}
+                        className="w-full bg-green-500 hover:bg-green-600 text-black font-bold text-lg py-6"
+                      >
+                        {t('auth.login.secureLoginButton') || 'Login with Customer Account API'}
+                        <LogIn className="ml-2 h-5 w-5" />
+                      </Button>
 
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-700" />
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-gray-700" />
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                          <span className="bg-gray-900/50 px-2 text-gray-400">{t('auth.or') || 'or'}</span>
+                        </div>
                       </div>
-                      <div className="relative flex justify-center text-sm">
-                        <span className="bg-gray-900/50 px-2 text-gray-400">{t('auth.or') || 'or'}</span>
-                      </div>
-                    </div>
 
+                      <Button
+                        onClick={handleHostedLogin}
+                        className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium text-base py-4"
+                      >
+                        {t('auth.login.quickLoginButton') || 'Login via Shopify'}
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
                     <Button
                       onClick={handleHostedLogin}
-                      className="w-full bg-gray-700 hover:bg-gray-600 text-white font-medium text-base py-4"
+                      className="w-full bg-green-500 hover:bg-green-600 text-black font-bold text-lg py-6"
                     >
-                      {t('auth.login.quickLoginButton') || 'Login via Shopify'}
-                      <ExternalLink className="ml-2 h-4 w-4" />
+                      {t('auth.login.shopLoginButton') || 'Login with Shopify'}
+                      <ExternalLink className="ml-2 h-5 w-5" />
                     </Button>
-                  </>
-                ) : (
-                  <Button
-                    onClick={handleHostedLogin}
-                    className="w-full bg-green-500 hover:bg-green-600 text-black font-bold text-lg py-6"
-                  >
-                    {t('auth.login.shopLoginButton') || 'Login with Shopify'}
-                    <ExternalLink className="ml-2 h-5 w-5" />
-                  </Button>
-                )}
-              </div>
-            </TabsContent>
+                  )}
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
 
           <div className="text-center text-sm text-gray-400">
