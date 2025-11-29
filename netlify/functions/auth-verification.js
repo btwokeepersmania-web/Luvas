@@ -174,6 +174,7 @@ const sendVerificationEmail = async (email, code, customerName) => {
       template_id: EMAILJS_TEMPLATE,
       // EmailJS requires the public key even when sending with a private key
       user_id: EMAILJS_PUBLIC_KEY,
+      accessToken: EMAILJS_PRIVATE_KEY, // explicitly include private key in body for server-side calls
       template_params: {
         to_email: email,
         to_name: customerName || 'Customer',
