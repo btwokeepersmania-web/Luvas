@@ -5,20 +5,24 @@
 
 const CLIENT_ID = import.meta.env.VITE_SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID;
 const RAW_CUSTOMER_DOMAIN = import.meta.env.VITE_SHOPIFY_CUSTOMER_ACCOUNT_DOMAIN || import.meta.env.VITE_SHOPIFY_DOMAIN;
-const SHOP_DOMAIN = RAW_CUSTOMER_DOMAIN?.replace(/^https?:\/\//, '').replace(/\/$/, '');
+const NORMALIZED_DOMAIN = RAW_CUSTOMER_DOMAIN
+  ? RAW_CUSTOMER_DOMAIN.replace(/^https?:\/\//, '').replace(/\/$/, '')
+  : null;
+const ACCOUNT_PATH = NORMALIZED_DOMAIN
+  ? (NORMALIZED_DOMAIN.includes('/account') ? NORMALIZED_DOMAIN : `${NORMALIZED_DOMAIN}/account`)
+  : null;
+const SHOP_DOMAIN = ACCOUNT_PATH; // legacy naming for downstream checks
 const REDIRECT_URI = `${window.location.origin}/auth/callback`;
 
-const ACCOUNT_BASE = SHOP_DOMAIN?.includes('/account')
-  ? `https://${SHOP_DOMAIN}`
-  : `https://${SHOP_DOMAIN}/account`;
+const ACCOUNT_BASE = ACCOUNT_PATH ? `https://${ACCOUNT_PATH}` : null;
 
 // Customer Account API endpoints
-const ENDPOINTS = {
-  authorize: `https://${SHOP_DOMAIN}/auth/oauth/authorize`,
-  token: `https://${SHOP_DOMAIN}/auth/oauth/token`,
+const ENDPOINTS = ACCOUNT_PATH ? {
+  authorize: `https://${ACCOUNT_PATH}/auth/oauth/authorize`,
+  token: `https://${ACCOUNT_PATH}/auth/oauth/token`,
   logout: `${ACCOUNT_BASE}/logout`,
   customerAccount: `${ACCOUNT_BASE}/customer/api/2024-07/graphql`,
-};
+} : {};
 
 /**
  * Generate a secure random string for state parameter
@@ -73,7 +77,7 @@ function clearAuthData() {
  * Initiate OAuth 2.0 authentication flow
  */
 export async function initiateLogin({ mode = 'login' } = {}) {
-  if (!CLIENT_ID || !SHOP_DOMAIN) {
+  if (!CLIENT_ID || !ACCOUNT_PATH) {
     throw new Error('Shopify Customer Account API not configured. Please add VITE_SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID to your environment variables.');
   }
 
@@ -264,5 +268,5 @@ export async function logout() {
  * Check if Customer Account API is properly configured
  */
 export function isConfigured() {
-  return !!(CLIENT_ID && SHOP_DOMAIN);
+  return !!(CLIENT_ID && ACCOUNT_PATH);
 }

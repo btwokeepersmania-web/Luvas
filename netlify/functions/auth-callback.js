@@ -21,14 +21,20 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing code or code_verifier' }) };
     }
 
-    const SHOP_DOMAIN = process.env.VITE_SHOPIFY_DOMAIN || process.env.SHOPIFY_DOMAIN;
+    const RAW_ACCOUNT_DOMAIN = process.env.VITE_SHOPIFY_CUSTOMER_ACCOUNT_DOMAIN || process.env.VITE_SHOPIFY_DOMAIN || process.env.SHOPIFY_DOMAIN;
+    const ACCOUNT_DOMAIN = RAW_ACCOUNT_DOMAIN
+      ? RAW_ACCOUNT_DOMAIN.replace(/^https?:\/\//, '').replace(/\/$/, '')
+      : null;
+    const ACCOUNT_PATH = ACCOUNT_DOMAIN
+      ? (ACCOUNT_DOMAIN.includes('/account') ? ACCOUNT_DOMAIN : `${ACCOUNT_DOMAIN}/account`)
+      : null;
     const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID || process.env.VITE_SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID;
 
-    if (!SHOP_DOMAIN || !CLIENT_ID) {
-      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server not configured with SHOP_DOMAIN or CLIENT_ID' }) };
+    if (!ACCOUNT_PATH || !CLIENT_ID) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server not configured with customer account domain or client ID' }) };
     }
 
-    const tokenUrl = `https://${SHOP_DOMAIN}/auth/oauth/token`;
+    const tokenUrl = `https://${ACCOUNT_PATH}/auth/oauth/token`;
 
     const params = new URLSearchParams();
     params.append('grant_type', 'authorization_code');
