@@ -26,6 +26,7 @@ const EMAILJS_OTP_TEMPLATE_ID = process.env.VITE_EMAILJS_OTP_TEMPLATE_ID || EMAI
 const EMAILJS_PUBLIC_KEY = process.env.VITE_EMAILJS_PUBLIC_KEY;
 const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY || process.env.VITE_EMAILJS_PRIVATE_KEY;
 const EMAILJS_TEMPLATE = EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID;
+const EMAILJS_ORIGIN = process.env.EMAILJS_ORIGIN || process.env.PUBLIC_SITE_URL || 'http://localhost';
 
 // Email transporter configuration
 const createTransporter = () => {
@@ -192,7 +193,8 @@ const sendVerificationEmail = async (email, code, customerName) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${EMAILJS_PRIVATE_KEY}`,
+        // EmailJS blocks non-browser calls unless an Origin header is present; allow override via env
+        Origin: EMAILJS_ORIGIN,
       },
       body: JSON.stringify(payload),
     });
