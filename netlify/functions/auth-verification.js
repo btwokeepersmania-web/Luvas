@@ -170,6 +170,7 @@ const sendVerificationEmail = async (email, code, customerName) => {
   if (EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE && EMAILJS_PRIVATE_KEY) {
     const subject = 'Verification Code';
     const message = `Your verification code is ${code}. It expires in 10 minutes. If you did not request this, please ignore this email.`;
+    const safeEmail = (email || '').trim();
     const payload = {
       service_id: EMAILJS_SERVICE_ID,
       template_id: EMAILJS_TEMPLATE,
@@ -177,10 +178,15 @@ const sendVerificationEmail = async (email, code, customerName) => {
       user_id: EMAILJS_PUBLIC_KEY,
       accessToken: EMAILJS_PRIVATE_KEY, // explicitly include private key in body for server-side calls
       template_params: {
-        to_email: email,
+        // include both email/to_email because template may reference either
+        email: safeEmail,
+        to_email: safeEmail,
+        to: safeEmail,
         to_name: customerName || 'Customer',
-        user_email: email,
+        user_email: safeEmail,
         user_name: customerName || 'Customer',
+        from_name: process.env.EMAIL_FROM || 'B2 Goalkeeping',
+        from_email: process.env.EMAIL_FROM || 'no-reply@b2goalkeeping.com',
         subject,
         message,
         verification_code: code,
