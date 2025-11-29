@@ -23,6 +23,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const forceHostedLogin = import.meta.env.VITE_SHOPIFY_HOSTED_LOGIN_ONLY === 'true';
 
   const from = location.state?.from?.pathname || '/account';
 
@@ -36,7 +37,7 @@ const LoginPage = () => {
     }
   };
 
-  const returnUrl = encodeURIComponent(`${window.location.origin}/auth/callback`);
+  const returnUrl = encodeURIComponent(`${window.location.origin}/account`);
   const rawCustomerDomain = import.meta.env.VITE_SHOPIFY_CUSTOMER_ACCOUNT_DOMAIN || import.meta.env.VITE_SHOPIFY_DOMAIN;
   const customerDomain = rawCustomerDomain?.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const accountBase = customerDomain
@@ -61,34 +62,23 @@ const LoginPage = () => {
   };
 
   const handleSecureLogin = async () => {
-    try {
-      sessionStorage.setItem('auth_return_to', from || '/account');
-      setLoading(true);
-      await initiateLogin();
-    } catch (error) {
-      console.error('Secure login initiation failed:', error);
-      sessionStorage.setItem('auth_return_to', from || '/account');
-      openPopupOrRedirect(shopifyLoginUrl);
-    }
+    sessionStorage.setItem('auth_return_to', from || '/account');
+    setLoading(true);
+    // Fallback to hosted login while OAuth client is unavailable
+    openPopupOrRedirect(shopifyLoginUrl);
   };
 
   const handleHostedLogin = () => {
     sessionStorage.setItem('auth_return_to', from || '/account');
     setLoading(true);
-    initiateLogin({ mode: 'login' }).catch((error) => {
-      console.error('Hosted login initiation failed:', error);
-      openPopupOrRedirect(shopifyLoginUrl);
-    });
+    openPopupOrRedirect(shopifyLoginUrl);
   };
 
   const handleHostedRegister = (event) => {
     if (event && event.preventDefault) event.preventDefault();
     sessionStorage.setItem('auth_return_to', from || '/account');
     setLoading(true);
-    initiateLogin({ mode: 'register' }).catch((error) => {
-      console.error('Hosted register initiation failed:', error);
-      openPopupOrRedirect(shopifyRegisterUrl);
-    });
+    openPopupOrRedirect(shopifyRegisterUrl);
   };
 
   useEffect(() => {
