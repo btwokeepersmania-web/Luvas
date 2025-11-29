@@ -174,6 +174,7 @@ const sendVerificationEmail = async (email, code, customerName) => {
       service_id: EMAILJS_SERVICE_ID,
       template_id: emailJsTemplate,
       user_id: EMAILJS_PUBLIC_KEY,
+      ...(EMAILJS_PRIVATE_KEY ? { accessToken: EMAILJS_PRIVATE_KEY } : {}),
       template_params: {
         to_email: email,
         to_name: customerName || 'Customer',
