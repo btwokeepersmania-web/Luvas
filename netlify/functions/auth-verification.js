@@ -25,6 +25,7 @@ const EMAILJS_TEMPLATE_ID = process.env.VITE_EMAILJS_TEMPLATE_ID;
 const EMAILJS_OTP_TEMPLATE_ID = process.env.VITE_EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID;
 const EMAILJS_PUBLIC_KEY = process.env.VITE_EMAILJS_PUBLIC_KEY;
 const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY || process.env.VITE_EMAILJS_PRIVATE_KEY;
+const EMAILJS_TEMPLATE = EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID;
 
 // Email transporter configuration
 const createTransporter = () => {
@@ -165,16 +166,12 @@ const sendVerificationEmail = async (email, code, customerName) => {
   }
 
   // Try EmailJS if configured
-  const emailJsTemplate = EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID;
-
-  if (EMAILJS_SERVICE_ID && emailJsTemplate && EMAILJS_PUBLIC_KEY) {
+  if (EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE && EMAILJS_PRIVATE_KEY) {
     const subject = 'Verification Code';
     const message = `Your verification code is ${code}. It expires in 10 minutes. If you did not request this, please ignore this email.`;
     const payload = {
       service_id: EMAILJS_SERVICE_ID,
-      template_id: emailJsTemplate,
-      user_id: EMAILJS_PUBLIC_KEY,
-      ...(EMAILJS_PRIVATE_KEY ? { accessToken: EMAILJS_PRIVATE_KEY } : {}),
+      template_id: EMAILJS_TEMPLATE,
       template_params: {
         to_email: email,
         to_name: customerName || 'Customer',
@@ -188,14 +185,12 @@ const sendVerificationEmail = async (email, code, customerName) => {
       },
     };
 
-    const emailJsHeaders = { 'Content-Type': 'application/json' };
-    if (EMAILJS_PRIVATE_KEY) {
-      emailJsHeaders.Authorization = `Bearer ${EMAILJS_PRIVATE_KEY}`;
-    }
-
     const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
       method: 'POST',
-      headers: emailJsHeaders,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${EMAILJS_PRIVATE_KEY}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -205,6 +200,9 @@ const sendVerificationEmail = async (email, code, customerName) => {
     }
 
     return;
+  } else if (EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE && EMAILJS_PUBLIC_KEY && !EMAILJS_PRIVATE_KEY) {
+    // EmailJS explicitly blocks server-side calls with only a public key; fall through to other providers
+    console.warn('EmailJS public key is configured without EMAILJS_PRIVATE_KEY; skipping EmailJS for server-side requests');
   }
 
   // Fallback to SMTP nodemailer
@@ -337,22 +335,25 @@ exports.handler = async (event, context) => {
 
         // Send email (only if an email service is configured)
         let emailSent = false;
-        const hasEmailJs = Boolean(EMAILJS_SERVICE_ID && (EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID) && EMAILJS_PUBLIC_KEY);
+        const hasEmailJsPrivate = Boolean(EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE && EMAILJS_PRIVATE_KEY);
+        const hasEmailJsPublicOnly = Boolean(EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE && EMAILJS_PUBLIC_KEY && !EMAILJS_PRIVATE_KEY);
         const hasSendGrid = Boolean(process.env.SENDGRID_API_KEY && (process.env.EMAIL_FROM || process.env.EMAIL_USER));
         const hasSmtp = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
         console.log('auth-verification provider flags', {
-          hasEmailJs,
+          hasEmailJsPrivate,
+          hasEmailJsPublicOnly,
           hasSendGrid,
           hasSmtp,
           emailJsService: !!EMAILJS_SERVICE_ID,
-          emailJsTemplate: !!(EMAILJS_OTP_TEMPLATE_ID || EMAILJS_TEMPLATE_ID),
-          emailJsKey: !!EMAILJS_PUBLIC_KEY,
+          emailJsTemplate: !!EMAILJS_TEMPLATE,
+          emailJsPublicKey: !!EMAILJS_PUBLIC_KEY,
+          emailJsPrivateKey: !!EMAILJS_PRIVATE_KEY,
           hasFromEmail: !!process.env.EMAIL_FROM,
           hasEmailUser: !!process.env.EMAIL_USER,
         });
 
-        if (hasEmailJs || hasSendGrid || hasSmtp) {
+        if (hasEmailJsPrivate || hasSendGrid || hasSmtp) {
           try {
             await sendVerificationEmail(email, verificationCode, customer.firstName);
             emailSent = true;
@@ -360,6 +361,8 @@ exports.handler = async (event, context) => {
             console.error('Failed to send verification email:', err && err.message ? err.message : err);
             // do not throw — return success with emailSent=false
           }
+        } else if (hasEmailJsPublicOnly) {
+          console.warn('auth-verification: EmailJS configured with public key only; server-side requests require EMAILJS_PRIVATE_KEY');
         } else {
           console.warn('auth-verification: no email provider configured');
         }
@@ -371,7 +374,7 @@ exports.handler = async (event, context) => {
             success: true,
             message: 'Verification code generated',
             emailSent,
-            providerConfigured: hasEmailJs || hasSendGrid || hasSmtp,
+            providerConfigured: hasEmailJsPrivate || hasSendGrid || hasSmtp,
             ...(process.env.NODE_ENV === 'development' && { code: verificationCode })
           })
         };
