@@ -24,7 +24,6 @@
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-tabs": "^1.0.4",
     "@radix-ui/react-toast": "^1.1.5",
-    "@shopify/hydrogen": "^2025.5.0",
     "@shopify/hydrogen-react": "^2025.5.0",
     "@supabase/supabase-js": "^2.57.4",
     "class-variance-authority": "^0.7.0",

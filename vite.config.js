@@ -1,6 +1,5 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
-import {hydrogen} from '@shopify/hydrogen/vite';
 import { createLogger, defineConfig, splitVendorChunkPlugin } from 'vite';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -208,7 +207,6 @@ logger.error = (msg, options) => {
 export default defineConfig({
 	customLogger: logger,
 	plugins: [
-		hydrogen(),
 		...(isDev ? [inlineEditPlugin(), editModeDevPlugin()] : []),
 		react(),
 		splitVendorChunkPlugin(),
