@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --background: 220 13% 10%;
+  --foreground: 210 40% 98%;
+  --card: 220 13% 12%;
+  --card-foreground: 210 40% 98%;
+  --popover: 220 13% 12%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 48 96% 53%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 48 96% 53%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 22%;
+  --input: 217 33% 22%;
+  --ring: 48 96% 53%;
+  --radius: 0.5rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+
+::selection {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.gradient-text {
+  background: linear-gradient(255deg, hsl(var(--secondary)), hsl(var(--primary)), #4B4B4B, #FFC900);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.neon-glow {
+  box-shadow: 0 0 20px hsla(var(--primary), 0.3), 0 0 40px hsla(var(--primary), 0.1);
+}
+
+.hero-video {
+  filter: brightness(0.6) contrast(1.1);
+}
+
+.hero-shadow {
+  box-shadow: inset 0px 0px 100px 40px hsl(var(--background));
+}
+
+.product-card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  transition: all 0.3s ease;
+}
+
+.collection-card {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, hsl(var(--primary)), hsl(45, 100%, 60%));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, hsl(45, 100%, 60%), hsl(var(--primary)));
+}
+
+/* Scrollbar-hide utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Gradient animation keyframes */
+@keyframes gradientX {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* pulse animation for cart when CTA flies */
+@keyframes cart-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.cart-pulse { animation: cart-pulse 0.6s ease-in-out; }
+
+@keyframes suggestions-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 199, 0, 0.0); transform: translateY(0); }
+  50% { box-shadow: 0 8px 30px rgba(255, 199, 0, 0.18); transform: translateY(-4px); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 199, 0, 0.0); transform: translateY(0); }
+}
+
+.suggestions-pulse { animation: suggestions-pulse 0.8s ease-in-out; }
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(-12deg);
+  }
+}
+
+.animate-gradient-x {
+  animation: gradientX 3s ease infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* Enhanced gradient text with animation */
+.animated-gradient-text {
+  background: linear-gradient(
+    90deg,
+    #10b981,
+    #fbbf24,
+    #10b981,
+    #34d399,
+    #fbbf24,
+    #10b981
+  );
+  background-size: 400% 400%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientX 3s ease infinite;
+}

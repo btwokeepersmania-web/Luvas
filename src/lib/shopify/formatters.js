@@ -1,0 +1,110 @@
+const parseQuantity = (value) => {
+  if (value === null || value === undefined) return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+export const formatProduct = (node) => ({
+  id: node.id,
+  title: node.title,
+  handle: node.handle,
+  description: node.description,
+  descriptionHtml: node.descriptionHtml,
+  seo: {
+    title: node.seo?.title ?? null,
+    description: node.seo?.description ?? null,
+  },
+  seoTitle: node.seo?.title ?? null,
+  seoDescription: node.seo?.description ?? null,
+  productType: node.productType,
+  metafields: node.metafields,
+  images: Array.isArray(node.images?.edges)
+    ? node.images.edges.map(({ node: imageNode }) => ({
+        id: imageNode?.id,
+        url: imageNode?.url,
+        thumbnailUrl: imageNode?.thumbnail ?? imageNode?.url,
+        altText: imageNode?.altText,
+      }))
+    : [],
+  options: node.options.map(option => ({
+    id: option.id,
+    name: option.name,
+    values: option.values,
+  })),
+  variants: Array.isArray(node.variants?.edges) ? node.variants.edges.map(({ node: variantNode }) => ({
+    id: variantNode?.id,
+    title: variantNode?.title,
+    availableForSale: variantNode?.availableForSale !== false,
+    quantityAvailable: parseQuantity(variantNode?.quantityAvailable),
+    price: variantNode?.price?.amount ?? null,
+    currency: variantNode?.price?.currencyCode ?? null,
+    compareAtPrice: variantNode?.compareAtPrice?.amount ?? null,
+    image: variantNode?.image ? { id: variantNode.image.id, url: variantNode.image.url, altText: variantNode.image.altText } : null,
+    selectedOptions: Array.isArray(variantNode?.selectedOptions) ? variantNode.selectedOptions.map(option => ({ name: option.name, value: option.value })) : [],
+  })) : [],
+  price: node.variants?.edges?.[0]?.node?.price?.amount ?? '0',
+  compareAtPrice: node.variants?.edges?.[0]?.node?.compareAtPrice?.amount ?? null,
+  currency: node.variants?.edges?.[0]?.node?.price?.currencyCode || 'BRL',
+  variantId: node.variants?.edges?.[0]?.node?.id ?? null,
+});
+
+export const formatProducts = (edges) => {
+  return edges.map(({ node }) => ({
+    id: node.id,
+    title: node.title,
+    handle: node.handle,
+    description: node.description,
+    seo: {
+      title: node.seo?.title ?? null,
+      description: node.seo?.description ?? null,
+    },
+    seoTitle: node.seo?.title ?? null,
+    seoDescription: node.seo?.description ?? null,
+    productType: node.productType,
+    images: Array.isArray(node.images?.edges)
+      ? node.images.edges.map(({ node: imageNode }) => ({
+          id: imageNode?.id,
+          url: imageNode?.url,
+          thumbnailUrl: imageNode?.thumbnail ?? imageNode?.url,
+          altText: imageNode?.altText,
+        }))
+      : [],
+    options: Array.isArray(node.options) ? node.options.map(option => ({ name: option.name, values: option.values })) : [],
+    variants: Array.isArray(node.variants?.edges) ? node.variants.edges.map(({ node: variantNode }) => ({
+      id: variantNode?.id,
+      title: variantNode?.title,
+      availableForSale: variantNode?.availableForSale !== false,
+      quantityAvailable: parseQuantity(variantNode?.quantityAvailable),
+      price: variantNode?.price?.amount ?? null,
+      currency: variantNode?.price?.currencyCode ?? null,
+      compareAtPrice: variantNode?.compareAtPrice?.amount ?? null,
+      image: variantNode?.image ? { id: variantNode.image.id, url: variantNode.image.url, altText: variantNode.image.altText } : null,
+      selectedOptions: Array.isArray(variantNode?.selectedOptions) ? variantNode.selectedOptions.map(opt => ({ name: opt.name, value: opt.value })) : [],
+    })) : [],
+    price: (() => {
+      const variantFromEdges = node.variants?.edges?.[0]?.node;
+      return (variantFromEdges?.price?.amount ?? node.priceRange?.minVariantPrice?.amount ?? '0');
+    })(),
+    compareAtPrice: node.variants?.edges?.[0]?.node?.compareAtPrice?.amount ?? node.priceRange?.maxVariantPrice?.amount ?? null,
+    currency: node.variants?.edges?.[0]?.node?.price?.currencyCode || node.priceRange?.minVariantPrice?.currencyCode || 'BRL',
+    variantId: node.variants?.edges?.[0]?.node?.id ?? null,
+  }));
+};
+
+export const formatCollection = (node) => ({
+    id: node.id,
+    title: node.title,
+    handle: node.handle,
+    description: node.description,
+    seo: {
+      title: node.seo?.title ?? null,
+      description: node.seo?.description ?? null,
+    },
+    seoTitle: node.seo?.title ?? null,
+    seoDescription: node.seo?.description ?? null,
+    image: node.image,
+});
+
+export const formatCollections = (edges) => {
+    return edges.map(({ node }) => formatCollection(node));
+};

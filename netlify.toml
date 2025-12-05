@@ -1,0 +1,37 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "./netlify/functions"
+  [build.environment]
+    SECRETS_SCAN_OMIT_KEYS = "VITE_SHOPIFY_API_VERSION,VITE_SHOPIFY_DOMAIN,VITE_EMAILJS_TEMPLATE_ID,VITE_EMAILJS_PUBLIC_KEY,VITE_EMAILJS_SERVICE_ID,VITE_SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID,PUBLIC_STOREFRONT_API_TOKEN"
+
+# SPA fallback so client-side routes work on refresh and direct links
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Security and caching headers for static assets
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self' 'unsafe-inline' data: https:; img-src * data:; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+
