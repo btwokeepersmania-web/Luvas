@@ -10,11 +10,15 @@ const Hero = () => {
   return (
     <section className="relative h-screen flex items-center justify-center text-center text-white overflow-hidden">
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <img
-          src={import.meta.env.VITE_HERO_IMAGE_URL || '/hero/b2friday.jpeg'}
-          alt={t('hero.backgroundAlt')}
-          className="w-full h-full object-cover object-[center_-90%] scale-110"
-          loading="eager"
+        <video
+          src={import.meta.env.VITE_HERO_VIDEO_URL || '/Videos/final.mp4'}
+          className="w-full h-full object-cover hero-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          poster={import.meta.env.VITE_HERO_IMAGE_URL || '/hero/b2friday.jpeg'}
+          aria-label={t('hero.backgroundAlt')}
         />
         <div className="absolute inset-0 bg-gray-950/60 hero-shadow" />
       </div>
