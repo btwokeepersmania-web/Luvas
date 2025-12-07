@@ -28,9 +28,9 @@
   "product.stockCount": "{{count}} em estoque",
   "product.remainingStock": "Restam {{count}} unidade(s)",
   "product.noMoreStock": "Sem estoque adicional disponível",
-  "hero.title.line1": "Comande a área",
-  "hero.title.line2": "com equipamentos profissionais de goleiro.",
-  "hero.subtitle": "Grip de elite, conforto respirável e durabilidade para sustentar cada defesa impossível.",
+  "hero.title.line1": "Encare a selva,",
+  "hero.title.line2": "só os mais fortes sobrevivem.",
+  "hero.subtitle": "Luvas feitas para quem se joga primeiro: grip, conforto e coragem para cada defesa impossível.",
   "home.metaDescription": "Luvas de goleiro, roupas e acessórios de elite da B2 Goalkeeping. Compre equipamentos profissionais com envio mundial.",
   "hero.shopNow": "Compre Agora",
   "collections.title": "Nossas Coleções",
@@ -296,5 +296,5 @@
   "care.step7.text": "Enxágue luvas Aqua com água morna (preferencialmente entre 35–40º) 1–2 horas antes do uso para ativar Hydrograins™. Umedeça todos os tipos de luvas de goleiro antes de jogar e mantenha-as ligeiramente úmidas durante o uso.",
   "care.backToShop": "Voltar à loja",
   "care.learnMore": "Ler",
-  "hero.backgroundAlt": "Vídeo em loop da selva destacando a B2 Goalkeeping"
+  "hero.backgroundAlt": "Plano de fundo do hero com equipamentos de goleiro"
 }
