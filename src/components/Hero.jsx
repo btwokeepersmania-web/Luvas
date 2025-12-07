@@ -17,7 +17,6 @@ const Hero = () => {
           muted
           loop
           playsInline
-          poster={import.meta.env.VITE_HERO_IMAGE_URL || '/hero/b2friday.jpeg'}
           aria-label={t('hero.backgroundAlt')}
         />
         <div className="absolute inset-0 bg-gray-950/60 hero-shadow" />
