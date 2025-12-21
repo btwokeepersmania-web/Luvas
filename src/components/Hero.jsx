@@ -17,6 +17,8 @@ const Hero = () => {
           loop
           muted
           playsInline
+          preload="metadata"
+          poster="/hero/survive.png"
           aria-label={t('hero.backgroundAlt')}
           className="w-full h-full object-cover hero-video"
         />
