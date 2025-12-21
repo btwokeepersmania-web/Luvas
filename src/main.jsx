@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, useLocation } from 'react-router-dom';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import App from '@/App';
 import '@/index.css';
 import '@/i18n';
@@ -12,11 +13,18 @@ const FullPageLoader = () => (
   </div>
 );
 
+const SpeedInsightsTracker = () => {
+  const location = useLocation();
+
+  return <SpeedInsights route={location.pathname} />;
+};
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Suspense fallback={<FullPageLoader />}>
       <BrowserRouter>
         <App />
+        <SpeedInsightsTracker />
       </BrowserRouter>
     </Suspense>
   </React.StrictMode>
