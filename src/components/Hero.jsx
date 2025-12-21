@@ -49,6 +49,18 @@ const Hero = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
+          className="flex justify-center"
+        >
+          <div className="inline-block px-3 sm:px-4 py-1.5">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide gradient-text text-center drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)] leading-tight">
+              {t('hero.vacationNotice')}
+            </h2>
+          </div>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6, ease: 'easeOut' }}
           className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4"
         >
