@@ -19,7 +19,7 @@ const AboutPage = () => {
         <meta property="og:title" content={`${t('About')} - ${shopName}`} />
         <meta property="og:description" content={t('about.subtitle')} />
       </Helmet>
-      <div className="pt-24 bg-gray-950">
+      <div className="pt-24 section-bg">
         <About />
         <Reviews />
         <SocialMediaFeed />

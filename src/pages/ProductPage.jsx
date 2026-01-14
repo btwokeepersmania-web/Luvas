@@ -480,7 +480,7 @@ const ProductPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-950">
+      <div className="flex items-center justify-center min-h-screen section-bg">
         <Loader2 className="h-16 w-16 animate-spin text-yellow-500" />
       </div>
     );
@@ -488,7 +488,7 @@ const ProductPage = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 text-center px-4">
+      <div className="flex flex-col items-center justify-center min-h-screen section-bg text-center px-4">
         <h1 className="text-3xl font-bold text-red-500 mb-4">{error}</h1>
         <Link to="/"><Button className="bg-yellow-500 hover:bg-yellow-600 text-black">{t('Back to Home')}</Button></Link>
       </div>

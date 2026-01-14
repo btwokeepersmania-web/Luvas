@@ -85,7 +85,7 @@ const AppContent = () => {
       </Helmet>
       <ScrollToTop />
       <Header />
-      <main className="min-h-screen bg-gray-950 text-white selection:bg-yellow-400 selection:text-black overflow-x-hidden">
+      <main className="min-h-screen section-bg text-white selection:bg-yellow-400 selection:text-black overflow-x-hidden">
         <ErrorBoundary>
           <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
             <Routes location={location} key={location.pathname}>

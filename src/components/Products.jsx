@@ -80,7 +80,7 @@ const Products = () => {
   };
 
   return (
-    <section id="produtos" className="py-20 bg-gray-950">
+    <section id="produtos" className="py-20 section-bg">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <AnimatedGradientText className="text-4xl md:text-5xl mb-6">

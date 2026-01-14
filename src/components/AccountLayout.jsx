@@ -14,7 +14,7 @@ const AccountLayout = () => {
 
     if (loading || !customer) {
         return (
-          <div className="flex items-center justify-center min-h-[calc(100vh-200px)] bg-gray-950">
+          <div className="flex items-center justify-center min-h-[calc(100vh-200px)] section-bg">
             <Loader2 className="h-16 w-16 animate-spin text-yellow-500" />
           </div>
         );

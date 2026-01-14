@@ -241,7 +241,7 @@ const AuthCallbackPage = () => {
       <Helmet>
         <title>{t('auth.callback.title')} - B2 Goalkeeping</title>
       </Helmet>
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+      <div className="min-h-screen section-bg flex items-center justify-center px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

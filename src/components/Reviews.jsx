@@ -237,7 +237,7 @@ useEffect(() => {
   };
 
   return (
-    <section id="reviews" className="py-20 bg-gray-950 overflow-hidden">
+    <section id="reviews" className="py-20 section-bg overflow-hidden">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 50 }}

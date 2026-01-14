@@ -6,7 +6,7 @@ const ComingSoonPage = () => {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white text-center px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center section-bg text-white text-center px-4">
       <motion.h1
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}

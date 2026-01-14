@@ -9,7 +9,7 @@ const PrivacyPolicyPage = () => {
         <title>Privacy Policy - B2 Goalkeeping</title>
         <meta name="description" content="Read our Privacy Policy to understand how we collect, use, and protect your personal information." />
       </Helmet>
-      <div className="bg-black text-white min-h-screen">
+      <div className="section-bg text-white min-h-screen">
         <div className="container mx-auto px-4 py-24 sm:py-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

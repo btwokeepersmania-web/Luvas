@@ -43,7 +43,7 @@ const PolicyPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-black">
+      <div className="flex items-center justify-center min-h-screen section-bg">
         <Loader2 className="h-16 w-16 animate-spin text-green-500" />
       </div>
     );
@@ -51,7 +51,7 @@ const PolicyPage = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-black text-center px-4">
+      <div className="flex flex-col items-center justify-center min-h-screen section-bg text-center px-4">
         <h1 className="text-3xl font-bold text-red-500 mb-4">{t(error)}</h1>
         <Button onClick={() => navigate('/')} className="bg-green-500 hover:bg-green-600 text-black">
           {t('policy.error.backButton')}
@@ -73,7 +73,7 @@ const PolicyPage = () => {
         <meta property="og:title" content={pageTitle} />
         {metaDescription && <meta property="og:description" content={metaDescription} />}
       </Helmet>
-      <div className="pt-32 pb-20 bg-black">
+      <div className="pt-32 pb-20 section-bg">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

@@ -14,7 +14,7 @@ const ContactPage = () => {
         <meta property="og:title" content={`${t('Contact')} - B2 Goalkeeping`} />
         <meta property="og:description" content={t('contact.subtitle')} />
       </Helmet>
-      <div className="pt-24 bg-gray-950">
+      <div className="pt-24 section-bg">
         <Contact />
         <EmailSubscription />
       </div>

@@ -40,7 +40,7 @@ const CareInstructionsPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white py-20 px-4">
+    <div className="min-h-screen section-bg text-white py-20 px-4">
       <Helmet>
         <title>{t('care.title')} B2 Goalkeeping</title>
       </Helmet>

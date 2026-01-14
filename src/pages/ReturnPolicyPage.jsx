@@ -9,7 +9,7 @@ const ReturnPolicyPage = () => {
         <title>Return Policy - B2 Goalkeeping</title>
         <meta name="description" content="Learn about our return and exchange policy for all B2 Goalkeeping products." />
       </Helmet>
-      <div className="bg-black text-white min-h-screen">
+      <div className="section-bg text-white min-h-screen">
         <div className="container mx-auto px-4 py-24 sm:py-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

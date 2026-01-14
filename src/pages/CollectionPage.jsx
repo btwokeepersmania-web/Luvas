@@ -75,7 +75,7 @@ const CollectionPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-950">
+      <div className="flex items-center justify-center min-h-screen section-bg">
         <Loader2 className="h-16 w-16 animate-spin text-yellow-500" />
       </div>
     );
@@ -83,7 +83,7 @@ const CollectionPage = () => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 text-center px-4">
+      <div className="flex flex-col items-center justify-center min-h-screen section-bg text-center px-4">
         <h1 className="text-3xl font-bold text-red-500 mb-4">{error}</h1>
         <Link to="/">
           <Button className="bg-yellow-500 hover:bg-yellow-600 text-black">{t('Back to Home')}</Button>
@@ -103,7 +103,7 @@ const CollectionPage = () => {
         {metaDescription && <meta property="og:description" content={metaDescription} />}
         {imageUrl && <meta property="og:image" content={imageUrl} />}
       </Helmet>
-      <div className="pt-24 pb-20 bg-gray-950">
+      <div className="pt-24 pb-20 section-bg">
         <div className="relative h-64 md:h-96 flex items-center justify-center text-center overflow-hidden">
           <motion.img
             src={imageUrl}

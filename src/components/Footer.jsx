@@ -28,7 +28,7 @@ const Footer = () => {
   const shopName = shopInfo?.name || "Goalkeeping";
 
   return (
-    <footer className="bg-gray-950 border-t border-yellow-500/20">
+    <footer className="section-bg border-t border-yellow-500/20">
       <div className="border-b border-yellow-500/10">
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">

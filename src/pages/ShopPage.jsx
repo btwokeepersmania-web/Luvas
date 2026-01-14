@@ -62,7 +62,7 @@ const ShopPage = () => {
         <meta property="og:title" content={`${t('shop.title')} - BTWO KEEPERS SHOP`} />
         <meta property="og:description" content={t('shop.metaDescription')} />
       </Helmet>
-      <section id="shop" className="pt-32 pb-20 bg-black">
+      <section id="shop" className="pt-32 pb-20 section-bg">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 50 }}

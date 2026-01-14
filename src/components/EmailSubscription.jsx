@@ -43,7 +43,7 @@ const EmailSubscription = () => {
   };
 
   return (
-    <section className="bg-gray-950 py-16">
+    <section className="section-bg py-16">
       <div className="container mx-auto px-4 max-w-2xl text-center">
         <motion.div
           initial={{ opacity: 0, y: 30 }}

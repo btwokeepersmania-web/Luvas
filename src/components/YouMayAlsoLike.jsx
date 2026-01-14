@@ -30,7 +30,7 @@ const YouMayAlsoLike = ({ currentProductHandle }) => {
   }
 
   return (
-    <section className="py-20 bg-gray-950 border-t border-yellow-500/10">
+    <section className="py-20 section-bg border-t border-yellow-500/10">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 50 }}

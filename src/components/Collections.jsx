@@ -12,7 +12,7 @@ const Collections = () => {
   const { t } = useTranslation();
 
   return (
-    <section id="colecoes" className="py-20 bg-gray-900">
+    <section id="colecoes" className="py-20 section-bg-soft">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <AnimatedGradientText className="text-4xl md:text-5xl mb-6">

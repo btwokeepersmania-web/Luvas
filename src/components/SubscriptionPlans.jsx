@@ -78,7 +78,7 @@ const SubscriptionPlans = () => {
 
   if (loading) {
     return (
-      <div className="py-20 flex justify-center items-center bg-black">
+      <div className="py-20 flex justify-center items-center section-bg">
         <Loader2 className="w-8 h-8 animate-spin text-green-500" />
       </div>
     );
@@ -89,7 +89,7 @@ const SubscriptionPlans = () => {
   }
 
   return (
-    <section id="subscriptions" className="py-20 bg-black">
+    <section id="subscriptions" className="py-20 section-bg">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 50 }}
