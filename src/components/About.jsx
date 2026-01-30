@@ -105,10 +105,20 @@ const About = () => {
                 src="/about/goleiro.jpeg"
                 loading="lazy"
                 decoding="async"
-                style={{ objectPosition: 'center 5%' }}
+                style={{ objectPosition: 'center 15%' }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-gray-950/60 via-transparent to-transparent rounded-2xl" />
               
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                viewport={{ once: true }}
+                className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur rounded-full px-6 py-2 text-sm font-semibold tracking-wide text-white border border-yellow-500/30"
+              >
+                Ramon Souza
+              </motion.div>
+
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
