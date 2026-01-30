@@ -100,9 +100,13 @@ const About = () => {
           >
             <div className="relative rounded-2xl overflow-hidden aspect-square max-h-[600px]">
               <img
-                alt="Professional goalkeeper wearing B2 Goalkeeping gloves"
+                alt="Goleiro profissional com luvas B2"
                 className="w-full h-full object-cover rounded-2xl"
-               src="https://images.unsplash.com/photo-1629473714631-e02d38f47f06" loading="lazy" decoding="async" />
+                src="/about/goleiro.jpeg"
+                loading="lazy"
+                decoding="async"
+                style={{ objectPosition: 'center 5%' }}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-gray-950/60 via-transparent to-transparent rounded-2xl" />
               
               <motion.div
@@ -110,7 +114,7 @@ const About = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
                 viewport={{ once: true }}
-                className="absolute top-6 right-6 bg-gray-950/80 backdrop-blur-sm rounded-lg p-4 border border-yellow-500/30"
+                className="absolute top-6 left-6 bg-gray-950/80 backdrop-blur-sm rounded-lg p-4 border border-yellow-500/30"
               >
                 <div className="text-center">
                   <div className="text-2xl font-bold text-yellow-400">500+</div>
@@ -124,7 +128,7 @@ const About = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.6 }}
                 viewport={{ once: true }}
-                className="absolute bottom-6 left-6 bg-gray-950/80 backdrop-blur-sm rounded-lg p-4 border border-yellow-500/30"
+                className="absolute bottom-6 right-6 bg-gray-950/80 backdrop-blur-sm rounded-lg p-4 border border-yellow-500/30"
               >
                 <div className="text-center">
                   <div className="text-2xl font-bold text-yellow-400">15+</div>
