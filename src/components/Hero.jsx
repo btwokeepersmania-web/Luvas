@@ -19,12 +19,7 @@ const Hero = () => {
           aria-hidden="true"
           className="absolute inset-0 h-full w-full object-cover scale-105 opacity-60 saturate-110"
         >
-          <source
-            src="/Videos/Reels_Video_btwowinter30OFF.mp4"
-            type="video/mp4"
-            media="(max-width: 767px)"
-          />
-          <source src="/Videos/wintersale.mp4" type="video/mp4" />
+          <source src="/Videos/survive.mp4" type="video/mp4" />
         </video>
         <video
           autoPlay
@@ -36,12 +31,7 @@ const Hero = () => {
           aria-label={t('hero.backgroundAlt')}
           className="relative z-10 h-full w-full object-contain hero-video"
         >
-          <source
-            src="/Videos/Reels_Video_btwowinter30OFF.mp4"
-            type="video/mp4"
-            media="(max-width: 767px)"
-          />
-          <source src="/Videos/wintersale.mp4" type="video/mp4" />
+          <source src="/Videos/survive.mp4" type="video/mp4" />
         </video>
         <div className="absolute inset-0 z-20 bg-gradient-to-b from-black/35 via-black/10 to-black/35 hero-shadow" />
       </div>
