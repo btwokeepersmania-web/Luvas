@@ -6,7 +6,7 @@ import { useCart } from '@/context/CartContext.jsx';
 import { useLocalization } from '@/context/LocalizationContext.jsx';
 import { Button } from '@/components/ui/button.jsx';
 import { Input } from '@/components/ui/input.jsx';
-import { Loader2, ShoppingCart, ChevronLeft, ChevronRight, Minus, Plus, X } from 'lucide-react';
+import { Loader2, ShoppingCart, ChevronLeft, ChevronRight, Minus, Plus, Play, X } from 'lucide-react';
 import { Helmet } from 'react-helmet';
 import { buildMetaDescription, buildPageTitle } from '@/lib/seo.js';
 import { cn } from '@/lib/utils.js';
@@ -96,16 +96,23 @@ const ProductPage = () => {
   }, [handle, fetchProductByHandle, t, country, language, variantHasStock]);
 
   const images = product?.images ?? [];
+  const media = useMemo(
+    () => product?.media?.length
+      ? product.media
+      : images.map((image) => ({ ...image, type: 'image' })),
+    [images, product?.media]
+  );
   const options = product?.options ?? [];
   const variants = product?.variants ?? [];
   const siteName = shopInfo?.name || 'B2 Goalkeeping';
 
   useEffect(() => {
-    if (!images.length) return undefined;
-    const preloaders = images.map((image) => {
-      if (!image?.url) return null;
+    if (!media.length) return undefined;
+    const preloaders = media.map((item) => {
+      const imageUrl = item.type === 'image' ? item.url : item.preview?.url;
+      if (!imageUrl) return null;
       const img = new Image();
-      img.src = image.url;
+      img.src = imageUrl;
       return img;
     });
     return () => {
@@ -116,7 +123,7 @@ const ProductPage = () => {
         }
       });
     };
-  }, [images]);
+  }, [media]);
 
   const availability = useMemo(() => {
     if (!variants.length || !options.length) {
@@ -190,11 +197,13 @@ const ProductPage = () => {
 
   const imageIndexMap = useMemo(() => {
     const map = new Map();
-    images.forEach((image, index) => {
-      map.set(image.id, index);
+    media.forEach((item, index) => {
+      if (item.type !== 'image') return;
+      map.set(item.id, index);
+      if (item.imageId) map.set(item.imageId, index);
     });
     return map;
-  }, [images]);
+  }, [media]);
 
   useEffect(() => {
     if (!selectedVariant?.image?.id) return;
@@ -469,14 +478,14 @@ const ProductPage = () => {
   }, [addToCart, cartItem, currentCustomAttributes, displayQuantity, maxQuantity, product, quantity, selectedVariant, updateQuantity, variantAvailable]);
 
   const handleNextImage = useCallback(() => {
-    if (!images.length) return;
-    setSelectedImageIndex((prev) => (prev + 1) % images.length);
-  }, [images.length]);
+    if (!media.length) return;
+    setSelectedImageIndex((prev) => (prev + 1) % media.length);
+  }, [media.length]);
 
   const handlePrevImage = useCallback(() => {
-    if (!images.length) return;
-    setSelectedImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  }, [images.length]);
+    if (!media.length) return;
+    setSelectedImageIndex((prev) => (prev - 1 + media.length) % media.length);
+  }, [media.length]);
 
   if (loading) {
     return (
@@ -497,9 +506,8 @@ const ProductPage = () => {
 
   if (!product) return null;
 
-  const hasImages = images.length > 0;
-  const currentImage = hasImages ? images[Math.min(selectedImageIndex, images.length - 1)] : null;
-  const currentImageUrl = currentImage?.url;
+  const hasMedia = media.length > 0;
+  const currentMedia = hasMedia ? media[Math.min(selectedImageIndex, media.length - 1)] : null;
   const primaryTitle = product?.seoTitle || product?.seo?.title || product?.title;
   const pageTitle = buildPageTitle(primaryTitle || product.title, siteName);
   const fallbackDescription = product?.title ? `${product.title} goalkeeper gear available at ${siteName}.` : siteName;
@@ -510,7 +518,7 @@ const ProductPage = () => {
     product?.descriptionHtml,
     fallbackDescription
   );
-  const ogImage = currentImage?.url;
+  const ogImage = currentMedia?.type === 'image' ? currentMedia.url : currentMedia?.preview?.url;
 
   return (
     <>
@@ -534,15 +542,39 @@ const ProductPage = () => {
               animate={{ opacity: 1, scale: 1 }}
               className="relative aspect-square w-full max-w-lg overflow-hidden rounded-lg border border-yellow-500/20"
             >
-              {hasImages ? (
+              {currentMedia?.type === 'image' ? (
                 <img
-                  key={currentImage?.id ?? selectedImageIndex}
-                  src={currentImageUrl}
-                  alt={currentImage?.altText || product.title}
+                  key={currentMedia.id ?? selectedImageIndex}
+                  src={currentMedia.url}
+                  alt={currentMedia.altText || product.title}
                   className="w-full h-full object-cover product-main-image transition-opacity duration-300 ease-in-out"
                   loading={selectedImageIndex === 0 ? 'eager' : 'lazy'}
                   decoding="async"
                   style={{ opacity: 1 }}
+                />
+              ) : currentMedia?.type === 'video' ? (
+                <video
+                  key={currentMedia.id}
+                  className="w-full h-full bg-black object-contain"
+                  controls
+                  playsInline
+                  preload="metadata"
+                  poster={currentMedia.preview?.url}
+                  aria-label={currentMedia.altText || product.title}
+                >
+                  {currentMedia.sources.map((source) => (
+                    <source key={source.url} src={source.url} type={source.mimeType} />
+                  ))}
+                </video>
+              ) : currentMedia?.type === 'externalVideo' ? (
+                <iframe
+                  key={currentMedia.id}
+                  src={currentMedia.embedUrl}
+                  title={currentMedia.altText || product.title}
+                  className="w-full h-full bg-black"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
                 />
               ) : (
                 <div className="w-full h-full bg-gray-900 flex items-center justify-center text-gray-500 text-sm">
@@ -550,7 +582,7 @@ const ProductPage = () => {
                 </div>
               )}
 
-              {hasImages && images.length > 1 && (
+              {hasMedia && media.length > 1 && (
                 <>
                   <Button
                     onClick={handlePrevImage}
@@ -572,11 +604,11 @@ const ProductPage = () => {
               )}
             </motion.div>
 
-            {hasImages && (
+            {hasMedia && (
               <div className="grid grid-cols-5 gap-2 w-full max-w-lg">
-                {images.map((image, index) => (
+                {media.map((item, index) => (
                   <div
-                    key={image.id}
+                    key={item.id}
                     onClick={() => setSelectedImageIndex(index)}
                     className={cn(
                       'aspect-square cursor-pointer rounded-md overflow-hidden border-2 transition-all',
@@ -585,13 +617,32 @@ const ProductPage = () => {
                         : 'border-transparent hover:border-yellow-500/50'
                     )}
                   >
-                    <img
-                      src={image.thumbnailUrl || image.url}
-                      alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
+                    {item.type === 'image' ? (
+                      <img
+                        src={item.thumbnailUrl || item.url}
+                        alt={item.altText || `Thumbnail ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : item.preview?.thumbnailUrl || item.preview?.url ? (
+                      <div className="relative h-full w-full">
+                        <img
+                          src={item.preview.thumbnailUrl || item.preview.url}
+                          alt={item.altText || `Video thumbnail ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-white">
+                          <Play className="h-6 w-6 fill-current" aria-hidden="true" />
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center bg-gray-900 text-yellow-400">
+                        <Play className="h-6 w-6 fill-current" aria-hidden="true" />
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

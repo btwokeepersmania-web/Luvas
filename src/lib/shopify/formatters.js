@@ -4,6 +4,55 @@ const parseQuantity = (value) => {
   return Number.isFinite(numeric) ? numeric : null;
 };
 
+const formatProductMedia = (connection) => {
+  if (!Array.isArray(connection?.edges)) return [];
+
+  return connection.edges.flatMap(({ node }) => {
+    if (node?.mediaContentType === 'IMAGE' && node.image?.url) {
+      return [{
+        id: node.id,
+        imageId: node.image.id,
+        type: 'image',
+        url: node.image.url,
+        thumbnailUrl: node.image.thumbnail ?? node.image.url,
+        altText: node.alt ?? node.image.altText ?? '',
+      }];
+    }
+
+    const previewImage = node?.previewImage;
+    const preview = previewImage?.url ? {
+      url: previewImage.url,
+      thumbnailUrl: previewImage.thumbnail ?? previewImage.url,
+      altText: node.alt ?? previewImage.altText ?? '',
+    } : null;
+
+    if (node?.mediaContentType === 'VIDEO') {
+      return [{
+        id: node.id,
+        type: 'video',
+        preview,
+        sources: Array.isArray(node.sources)
+          ? node.sources.map(({ url, mimeType }) => ({ url, mimeType }))
+          : [],
+        altText: node.alt ?? '',
+      }];
+    }
+
+    if (node?.mediaContentType === 'EXTERNAL_VIDEO' && node.embedUrl) {
+      return [{
+        id: node.id,
+        type: 'externalVideo',
+        embedUrl: node.embedUrl,
+        host: node.host,
+        preview,
+        altText: node.alt ?? '',
+      }];
+    }
+
+    return [];
+  });
+};
+
 export const formatProduct = (node) => ({
   id: node.id,
   title: node.title,
@@ -26,6 +75,7 @@ export const formatProduct = (node) => ({
         altText: imageNode?.altText,
       }))
     : [],
+  media: formatProductMedia(node.media),
   options: node.options.map(option => ({
     id: option.id,
     name: option.name,

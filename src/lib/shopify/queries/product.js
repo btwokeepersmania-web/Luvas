@@ -86,6 +86,48 @@ export const fetchProductByHandle = async (fetcher, handle) => {
             }
           }
         }
+        media(first: 12) {
+          edges {
+            node {
+              mediaContentType
+              ... on MediaImage {
+                id
+                image {
+                  id
+                  altText
+                  url(transform: { maxWidth: 1400, crop: CENTER })
+                  thumbnail: url(transform: { maxWidth: 320, maxHeight: 320, crop: CENTER })
+                }
+              }
+              ... on Video {
+                id
+                alt
+                previewImage {
+                  id
+                  altText
+                  url(transform: { maxWidth: 1400, crop: CENTER })
+                  thumbnail: url(transform: { maxWidth: 320, maxHeight: 320, crop: CENTER })
+                }
+                sources {
+                  url
+                  mimeType
+                }
+              }
+              ... on ExternalVideo {
+                id
+                alt
+                embedUrl
+                host
+                previewImage {
+                  id
+                  altText
+                  url(transform: { maxWidth: 1400, crop: CENTER })
+                  thumbnail: url(transform: { maxWidth: 320, maxHeight: 320, crop: CENTER })
+                }
+              }
+            }
+          }
+        }
         options(first: 3) { id name values }
         variants(first: 250) { edges { node { id title availableForSale quantityAvailable price { amount currencyCode } compareAtPrice { amount currencyCode } image { id url altText } selectedOptions { name value } } } }
       }
